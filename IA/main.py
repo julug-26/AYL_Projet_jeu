@@ -1,6 +1,6 @@
 import pygame
 from settings import *
-from player import Player
+from assets.player import Player
 from enemy import Enemy
 
 pygame.init()
