@@ -10,7 +10,7 @@ class Room:
         self.items = []
 
         for layer in self.data.visible_layers:
-            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "wall":
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "wall tuiles":
                 for x, y, gid in layer:
                     if gid:
                         self.collisions.append(pygame.Rect(
