@@ -30,8 +30,14 @@ controls2 = {
 player1 = Player(300, 300, "assets/spritepersobleu.png", controls1)
 player2 = Player(200, 300, "assets/spritepersovert.png", controls2)
 
+font = pygame.font.SysFont(None, 36)
+notification = None
+notification_timer = 0
+
 running = True
 while running:
+    dt = clock.tick(FPS)
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -44,13 +50,26 @@ while running:
     for rect in [p1_rect, p2_rect]:
         collected = room.check_items(rect)
         for item in collected:
-            print(f"Ramassé : {item}")
+            notification = f"Ramassé : {item}"
+            notification_timer = 3000
 
     screen.fill((0, 0, 0))
     room.draw(screen)
     player1.draw(screen)
     player2.draw(screen)
+
+    if notification and notification_timer > 0:
+        notification_timer -= dt
+        text = font.render(notification, True, (255, 255, 255))
+        pad = 16
+        rect_w = text.get_width() + pad * 2
+        rect_h = text.get_height() + pad * 2
+        rect_x = SCREEN_W // 2 - rect_w // 2
+        rect_y = SCREEN_H // 2 - rect_h // 2
+        pygame.draw.rect(screen, (30, 30, 30), (rect_x, rect_y, rect_w, rect_h), border_radius=8)
+        pygame.draw.rect(screen, (255, 255, 255), (rect_x, rect_y, rect_w, rect_h), 2, border_radius=8)
+        screen.blit(text, (rect_x + pad, rect_y + pad))
+
     pygame.display.flip()
-    clock.tick(FPS)
 
 pygame.quit()
