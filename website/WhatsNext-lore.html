@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>What's Next? — Lore</title>
+  <link rel="icon" type="image/x-icon" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .lore-hero {
+      padding: 140px 48px 60px;
+      max-width: 1100px; margin: 0 auto;
+      position: relative;
+    }
+    .lore-crystal {
+      position: absolute; right: 48px; top: 120px;
+      width: 180px; opacity: 0.55;
+      filter: drop-shadow(0 0 30px rgba(0,255,157,0.5));
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0) rotate(-3deg); }
+      50%      { transform: translateY(-16px) rotate(3deg); }
+    }
+    .lore-chapter {
+      display: flex; align-items: flex-start; gap: 24px;
+      margin-bottom: 48px;
+    }
+    .lore-num {
+      font-family: var(--font-head); font-size: 56px; font-weight: 900;
+      color: rgba(0,255,157,0.06); line-height: 1; flex-shrink: 0;
+      width: 60px; text-align: right;
+      margin-top: -4px;
+    }
+    .lore-p {
+      font-size: 18px; color: var(--text); line-height: 1.9; font-weight: 300;
+    }
+    .lore-p em {
+      color: var(--emerald); font-style: normal;
+    }
+    .lore-divider {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--border-hot), transparent);
+      margin: 0 auto 8px; display: block;
+    }
+    @media (max-width:600px) { .lore-crystal { display:none; } .lore-hero { padding: 120px 20px 40px; } }
+  </style>
+</head>
+<body>
+  <div id="page-transition" class="page-transition"></div>
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <nav>
+    <a href="WhatsNext-index.html" class="nav-logo">What's Next?</a>
+    <ul class="nav-links">
+      <li><a href="WhatsNext-accueil.html">Accueil</a></li>
+      <li><a href="WhatsNext-lore.html" class="active">Lore</a></li>
+      <li><a href="WhatsNext-groupe.html">Groupe</a></li>
+      <li><a href="WhatsNext-IA.html">Charte IA</a></li>
+      <li><a href="WhatsNext-liens.html">Liens</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="lore-hero">
+      <img src="logo.png" class="lore-crystal" alt="Cristal">
+
+      <div class="section-label">Histoire</div>
+      <h1 class="section-title" style="font-size:clamp(36px,6vw,72px);margin-bottom:16px;">
+        Le <span style="color:var(--emerald)">Cristal</span><br>des Profondeurs
+      </h1>
+      <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:3px;color:var(--text-dim);margin-bottom:60px;">
+        — Chroniques souterraines, Chapitre I —
+      </p>
+
+      <div class="lore-chapter reveal" data-delay="0">
+        <div class="lore-num">01</div>
+        <p class="lore-p">
+          Dans le paisible village de …, deux amis passent leurs journées à aider les habitants et à explorer les environs. 
+          Rien ne laissait présager que cette journée serait <em>différente des autres</em>.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="1"></span>
+
+      <div class="lore-chapter reveal" data-delay="1">
+        <div class="lore-num">02</div>
+        <p class="lore-p">
+          Alors qu'ils traversent la place du marché, une vieille dame les interpelle. Elle semble inquiète : 
+          un objet précieux, une <em>ancienne relique</em>, a disparu non loin du village. 
+          Elle leur promet une récompense s'ils acceptent d'aller la récupérer.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="2"></span>
+
+      <div class="lore-chapter reveal" data-delay="2">
+        <div class="lore-num">03</div>
+        <p class="lore-p">
+          Les deux amis partent donc sur le chemin forestier qui mène aux ruines voisines. Après quelques épreuves, 
+          ils parviennent à mettre la main sur l'objet. Mais sur le chemin du retour, une <em>embuscade se déclenche</em>.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="3"></span>
+
+      <div class="lore-chapter reveal" data-delay="3">
+        <div class="lore-num">04</div>
+        <p class="lore-p" style="font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:2px;color:#fff;text-align:center;width:100%;">
+          Le sol s'effondre sous leurs pieds.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="4"></span>
+
+      <div class="lore-chapter reveal" data-delay="4">
+        <div class="lore-num">05</div>
+        <p class="lore-p">
+          Ils chutent dans l'obscurité… et se réveillent dans un immense <em>complexe souterrain</em> 
+          composé de donjons reliés entre eux. En explorant ces lieux, ils découvrent un étrange 
+          <em>cristal vert</em>, incrusté dans la roche et pulsant d'une lueur surnaturelle.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="5"></span>
+
+      <div class="lore-chapter reveal" data-delay="5">
+        <div class="lore-num">06</div>
+        <p class="lore-p">
+          Poussés par la curiosité — et par la nécessité de survivre — ils en consomment un fragment. 
+          Très vite, ils sentent leur corps changer. <em>Force, vitesse, pouvoirs étranges…</em> 
+          le cristal leur offre des capacités qu'aucun humain ne devrait posséder.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="6"></span>
+
+      <div class="lore-chapter reveal" data-delay="6">
+        <div class="lore-num">07</div>
+        <p class="lore-p">
+          Mais ce pouvoir a un prix. Plus ils avancent, plus ils ressentent le besoin d'en consommer à nouveau. 
+          Une sensation de <em>manque s'installe</em>. Le cristal n'est plus seulement un outil : 
+          il devient une obsession.
+        </p>
+      </div>
+
+      <span class="lore-divider reveal" data-delay="7"></span>
+
+      <div class="lore-chapter reveal" data-delay="7">
+        <div class="lore-num">08</div>
+        <p class="lore-p" style="color:var(--emerald);font-style:italic;font-size:20px;font-weight:400;">
+          Pour retrouver la surface — et comprendre le lien entre la relique, la vieille dame, 
+          et ce monde souterrain — ils devront continuer à plonger toujours plus profondément. <br><br>
+          Ensemble.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span>◈ What's Next? — 2025</span>
+    <span>RPG · CO-OP · PUZZLE · PYTHON</span>
+    <span>v1.0.0</span>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
