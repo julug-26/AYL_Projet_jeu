@@ -1,10 +1,6 @@
 import pygame
 from room import Room
 from player import Player
-import network
-
-# CHOIX EN PREMIER avant tout pygame
-player_id = input("Tu es joueur 1 (fleches) ou 2 (zqsd) ? Tape 1 ou 2 : ")
 
 pygame.init()
 
@@ -13,7 +9,7 @@ SCREEN_H = 600
 FPS = 60
 
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-pygame.display.set_caption("Mon jeu réseau")
+pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 
 room = Room("assets/maps/premiere salle donjon.tmx")
@@ -34,38 +30,14 @@ controls2 = {
 player1 = Player(300, 300, "assets/spritepersobleu.png", controls1)
 player2 = Player(200, 300, "assets/spritepersovert.png", controls2)
 
-if player_id == "1":
-    my_player = player1
-    my_key = "player1"
-else:
-    my_player = player2
-    my_key = "player2"
-
-network.connect_to_server('10.90.128.227')  # Change IP si LAN
-
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    if not network.sock or network.sock.fileno() < 0:
-        print("Déconnecté du serveur")
-        break
-
-    try:
-        inputs = my_player.get_input()
-        inputs["player_id"] = my_key
-        network.send_inputs(inputs)
-    except Exception as e:
-        print(f"Erreur réseau: {e}")
-        break
-
-    state = network.game_state
-    if "player1" in state:
-        player1.apply_state(state["player1"])
-    if "player2" in state:
-        player2.apply_state(state["player2"])
+    player1.update(room.collisions)
+    player2.update(room.collisions)
 
     p1_rect = pygame.Rect(player1.x, player1.y, 48, 64)
     p2_rect = pygame.Rect(player2.x, player2.y, 48, 64)
@@ -81,8 +53,4 @@ while running:
     pygame.display.flip()
     clock.tick(FPS)
 
-try:
-    network.sock.close()
-except:
-    pass
 pygame.quit()

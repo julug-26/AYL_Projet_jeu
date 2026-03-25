@@ -9,6 +9,17 @@ class Room:
         self.collisions = []
         self.items = []
 
+        for layer in self.data.visible_layers:
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "wall":
+                for x, y, gid in layer:
+                    if gid:
+                        self.collisions.append(pygame.Rect(
+                            x * self.tile_width,
+                            y * self.tile_height,
+                            self.tile_width,
+                            self.tile_height
+                        ))
+
         for obj in self.data.objects:
             if obj.type == "collectible":
                 self.items.append({
