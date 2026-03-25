@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>What's Next? — Accueil</title>
+  <link rel="icon" type="image/x-icon" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="page-transition" class="page-transition"></div>
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- NAV -->
+  <nav>
+    <a href="WhatsNext-index.html" class="nav-logo">What's Next?</a>
+    <ul class="nav-links">
+      <li><a href="WhatsNext-accueil.html" class="active">Accueil</a></li>
+      <li><a href="WhatsNext-lore.html">Lore</a></li>
+      <li><a href="WhatsNext-groupe.html">Groupe</a></li>
+      <li><a href="WhatsNext-IA.html">Charte IA</a></li>
+      <li><a href="WhatsNext-liens.html">Liens</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <div class="hero-eyebrow">◈ &nbsp;Présentation du projet</div>
+        <h1 class="hero-title glitch">WHAT'S<br><span>NEXT?</span></h1>
+        <p class="hero-sub typewriter">RPG Coopératif — Donjons & Énigmes — Python</p>
+        <div class="hero-cta">
+          <a href="WhatsNext-lore.html" class="btn btn-primary">Lire le lore</a>
+          <a href="WhatsNext-groupe.html" class="btn btn-outline">L'équipe</a>
+        </div>
+      </div>
+      <div class="scroll-hint">
+        <span>Scroll</span>
+        <div class="scroll-line"></div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="section">
+      <div class="section-label">Le jeu en chiffres</div>
+      <div class="stats-row reveal" data-delay="0">
+        <div class="stat-badge">
+          <span class="stat-num">2</span>
+          <span class="stat-label">Joueurs CO-OP</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-num">5</span>
+          <span class="stat-label">Membres d'équipe</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-num">3D</span>
+          <span class="stat-label">Vue top-down</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-num">∞</span>
+          <span class="stat-label">Donjons</span>
+        </div>
+      </div>
+
+      <div class="section-title reveal" data-delay="1">Qu'est-ce que <span style="color:var(--emerald)">What's Next?</span></div>
+
+      <div class="panel reveal" data-delay="2" style="margin-bottom:24px;">
+        <div class="terminal-tag">// RPG · CO-OP · PUZZLE</div>
+        <p style="font-size:18px;line-height:1.8;color:var(--text);">
+          <strong style="color:var(--emerald)">WHAT'S NEXT?</strong> est un jeu de rôle coopératif mêlant réflexion et énigmes. 
+          Il s'agit d'un RPG dans lequel deux joueurs incarnent des personnages évoluant au fil de l'aventure 
+          en débloquant de nouvelles capacités et en progressant dans une histoire scénarisée.
+        </p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="panel reveal" data-delay="3">
+          <div class="ia-state-title">Coopération</div>
+          <p style="color:var(--text-dim);font-size:16px;line-height:1.7;">
+            Deux joueurs jouent simultanément sur le même écran et doivent collaborer, 
+            communiquer et combiner leurs actions pour avancer.
+          </p>
+        </div>
+        <div class="panel reveal" data-delay="4">
+          <div class="ia-state-title">Énigmes</div>
+          <p style="color:var(--text-dim);font-size:16px;line-height:1.7;">
+            Des puzzles intégrés aux donjons demandent logique, coordination et réflexion 
+            plutôt que de simples compétences d'exécution.
+          </p>
+        </div>
+        <div class="panel reveal" data-delay="5">
+          <div class="ia-state-title">Technologie</div>
+          <p style="color:var(--text-dim);font-size:16px;line-height:1.7;">
+            Codé en <span style="color:var(--emerald)">Python</span>, le jeu bénéficie de sa clarté 
+            et flexibilité pour la mise en place des mécaniques, de l'IA et des interactions.
+          </p>
+        </div>
+        <div class="panel reveal" data-delay="6">
+          <div class="ia-state-title">Vue 3D Top-Down</div>
+          <p style="color:var(--text-dim);font-size:16px;line-height:1.7;">
+            Environnements modélisés en 3D présentés via une caméra fixe du dessus, 
+            offrant lisibilité optimale et aspect stratégique.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>◈ What's Next? — 2025</span>
+    <span>RPG · CO-OP · PUZZLE · PYTHON</span>
+    <span>v1.0.0</span>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

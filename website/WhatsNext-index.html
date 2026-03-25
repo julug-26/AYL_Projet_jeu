@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>What's Next?</title>
+  <link rel="icon" type="image/x-icon" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { overflow: hidden; }
+    .index-hero { cursor: none; }
+    .corner { position: absolute; width: 20px; height: 20px; }
+    .corner-tl { top: 20px; left: 20px; border-top: 2px solid var(--emerald); border-left: 2px solid var(--emerald); }
+    .corner-tr { top: 20px; right: 20px; border-top: 2px solid var(--emerald); border-right: 2px solid var(--emerald); }
+    .corner-bl { bottom: 20px; left: 20px; border-bottom: 2px solid var(--emerald); border-left: 2px solid var(--emerald); }
+    .corner-br { bottom: 20px; right: 20px; border-bottom: 2px solid var(--emerald); border-right: 2px solid var(--emerald); }
+
+    .scan-line {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,255,157,0.6), transparent);
+      animation: scan 3s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes scan {
+      0%   { top: 0; opacity: 0; }
+      5%   { opacity: 1; }
+      95%  { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    .version-tag {
+      position: absolute; top: 28px; right: 28px; z-index: 3;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+      color: var(--emerald); opacity: 0.6;
+      animation: fade-up 1s 1.5s both;
+    }
+    .coords {
+      position: absolute; bottom: 28px; left: 28px; z-index: 3;
+      font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+      color: var(--text-dim);
+      animation: fade-up 1s 1.5s both;
+    }
+  </style>
+</head>
+<body>
+  <div id="page-transition" class="page-transition"></div>
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="index-hero">
+    <div class="index-bg"></div>
+    <div class="scan-line"></div>
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+
+    <div class="version-tag">v1.0.0 — ALPHA</div>
+    <div class="coords" id="coords">48°51'N — 02°21'E</div>
+
+    <div class="index-content">
+      <div class="index-sub">Un RPG coopératif — Donjon & Énigmes</div>
+      <div class="index-title">WHAT'S<br><span>NEXT</span><span style="color:#fff">?</span></div>
+      <br>
+      <a href="WhatsNext-accueil.html" class="discover-btn">◈ &nbsp;DÉCOUVRIR</a>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+  <script>
+    // Live coordinates display
+    document.addEventListener('mousemove', e => {
+      const x = (e.clientX / window.innerWidth  * 100).toFixed(2);
+      const y = (e.clientY / window.innerHeight * 100).toFixed(2);
+      document.getElementById('coords').textContent = `X:${x} — Y:${y}`;
+    });
+  </script>
+</body>
+</html>

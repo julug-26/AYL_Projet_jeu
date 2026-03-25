@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>What's Next? — Charte IA</title>
+  <link rel="icon" type="image/x-icon" href="logo.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .ia-section { max-width: 1100px; margin: 0 auto; padding: 120px 48px 80px; }
+
+    .ia-full {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 32px 36px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ia-full::before {
+      content: '';
+      position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
+      background: var(--emerald);
+      box-shadow: var(--glow-sm);
+    }
+    .ia-full h2 {
+      font-family: var(--font-head); font-size: 13px; font-weight: 700;
+      color: var(--emerald); letter-spacing: 3px; text-transform: uppercase;
+      margin-bottom: 16px; padding-left: 16px;
+    }
+    .ia-full p, .ia-full li {
+      font-size: 16px; color: var(--text-dim); line-height: 1.75;
+      padding-left: 16px;
+    }
+    .ia-full ul { list-style: none; }
+    .ia-full li::before { content: '→ '; color: var(--emerald); }
+    .ia-full li { margin-bottom: 6px; }
+
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(2,1fr);
+      gap: 20px;
+      margin: 32px 0;
+    }
+    @media(max-width:650px){ .states-grid{grid-template-columns:1fr;} }
+
+    .state-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 28px;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .state-card:hover {
+      border-color: var(--border-hot);
+      box-shadow: 0 0 28px rgba(0,255,157,0.07);
+    }
+    .state-badge {
+      position: absolute; top: 20px; right: 20px;
+      font-family: var(--font-head); font-size: 40px; font-weight: 900;
+      color: rgba(0,255,157,0.06); line-height: 1;
+    }
+    .state-title {
+      font-family: var(--font-head); font-size: 13px; font-weight: 700;
+      color: var(--emerald); letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .state-card p { font-size: 15px; color: var(--text-dim); line-height: 1.7; }
+
+    .logic-box {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 28px 32px;
+      font-family: var(--font-mono);
+      font-size: 14px; line-height: 2;
+      color: var(--text);
+      margin-top: 20px;
+    }
+    .logic-box .kw  { color: var(--emerald); }
+    .logic-box .cm  { color: var(--text-dim); font-style: italic; }
+    .logic-box .ind { padding-left: 24px; display: block; }
+    .logic-box .ind2{ padding-left: 48px; display: block; }
+
+    @media(max-width:600px){ .ia-section{padding:100px 20px 60px;} }
+  </style>
+</head>
+<body>
+  <div id="page-transition" class="page-transition"></div>
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-trail" id="cursor-trail"></div>
+  <canvas id="bg-canvas"></canvas>
+
+  <nav>
+    <a href="WhatsNext-index.html" class="nav-logo">What's Next?</a>
+    <ul class="nav-links">
+      <li><a href="WhatsNext-accueil.html">Accueil</a></li>
+      <li><a href="WhatsNext-lore.html">Lore</a></li>
+      <li><a href="WhatsNext-groupe.html">Groupe</a></li>
+      <li><a href="WhatsNext-IA.html" class="active">Charte IA</a></li>
+      <li><a href="WhatsNext-liens.html">Liens</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="ia-section">
+      <div class="section-label">Intelligence Artificielle</div>
+      <h1 class="section-title">Charte de comportement<br><span style="color:var(--emerald)">des mobs de donjon</span></h1>
+
+      <!-- OBJECTIF -->
+      <div class="ia-full reveal" data-delay="0">
+        <h2>01 — Objectif</h2>
+        <p>
+          Cette IA contrôle un ennemi simple capable de patrouiller, détecter un joueur dans son champ de vision, 
+          s'approcher pour attaquer selon son type de combat, et se replier quand sa santé devient trop faible. 
+          L'objectif est d'obtenir un comportement lisible, crédible et facile à implémenter.
+        </p>
+      </div>
+
+      <!-- ÉTATS -->
+      <div style="margin:12px 0 8px;">
+        <div class="section-label reveal" data-delay="1">02 — États principaux</div>
+      </div>
+      <div class="states-grid">
+        <div class="state-card reveal" data-delay="2">
+          <div class="state-badge">01</div>
+          <div class="state-title">Patrouille</div>
+          <p>Le mob se déplace entre plusieurs points prédéfinis ou marche aléatoirement dans une zone. 
+          Il peut marquer une courte pause pour paraître naturel. Dès qu'un joueur est visible, 
+          il passe en mode poursuite.</p>
+        </div>
+        <div class="state-card reveal" data-delay="3">
+          <div class="state-badge">02</div>
+          <div class="state-title">Détection / Poursuite</div>
+          <p>Quand un joueur est vu, le mob vérifie la distance, l'angle de vision et l'absence d'obstacle. 
+          Il se tourne vers sa cible et avance jusqu'à atteindre sa distance d'attaque idéale.</p>
+        </div>
+        <div class="state-card reveal" data-delay="4">
+          <div class="state-badge">03</div>
+          <div class="state-title">Attaque</div>
+          <p><strong style="color:var(--emerald)">Corps à corps :</strong> s'approche jusqu'au contact, frappe, suit si le joueur s'éloigne.<br>
+          <strong style="color:var(--emerald)">Archer :</strong> maintient la distance optimale, tire tant que le joueur est visible, 
+          recule si trop proche.</p>
+        </div>
+        <div class="state-card reveal" data-delay="5">
+          <div class="state-badge">04</div>
+          <div class="state-title">Repli / Fuite</div>
+          <p>Si la santé du mob descend sous 20–30 % de ses PV, il cesse d'attaquer et cherche à s'éloigner. 
+          Il peut rejoindre une zone sûre ou revenir à sa position d'origine.</p>
+        </div>
+      </div>
+
+      <!-- LOGIQUE -->
+      <div class="section-label reveal" data-delay="6">03 — Logique de décision</div>
+      <div class="logic-box reveal" data-delay="7">
+        <span class="cm">// Pseudo-code — boucle de décision du mob</span><br>
+        <span><span class="kw">fonction</span> update_mob(mob):</span>
+        <span class="ind"><span class="kw">si</span> mob.pv &lt; mob.seuil_fuite:</span>
+        <span class="ind2">→ <span class="kw">STATE</span>.REPLI</span>
+        <span class="ind"><span class="kw">sinon si</span> joueur_visible(mob):</span>
+        <span class="ind2"><span class="kw">si</span> mob.type == "melee":</span>
+        <span style="padding-left:72px;display:block;">→ avancer_vers(joueur) → attaquer()</span>
+        <span class="ind2"><span class="kw">si</span> mob.type == "archer":</span>
+        <span style="padding-left:72px;display:block;">→ maintenir_distance() → tirer()</span>
+        <span class="ind"><span class="kw">sinon</span>:</span>
+        <span class="ind2">→ <span class="kw">STATE</span>.PATROUILLE</span>
+      </div>
+
+      <!-- PARAMÈTRES -->
+      <div style="margin-top:40px;">
+        <div class="section-label reveal" data-delay="8">04 — Paramètres</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px;">
+          <div class="panel reveal" data-delay="9">
+            <div class="ia-state-title">Vision</div>
+            <ul style="list-style:none;color:var(--text-dim);font-size:15px;line-height:2;">
+              <li>→ Distance de vision</li>
+              <li>→ Angle de vision</li>
+              <li>→ Temps avant perte de cible</li>
+            </ul>
+          </div>
+          <div class="panel reveal" data-delay="10">
+            <div class="ia-state-title">Déplacement</div>
+            <ul style="list-style:none;color:var(--text-dim);font-size:15px;line-height:2;">
+              <li>→ Vitesse de patrouille</li>
+              <li>→ Vitesse de poursuite</li>
+              <li>→ Distance max depuis l'origine</li>
+            </ul>
+          </div>
+          <div class="panel reveal" data-delay="11">
+            <div class="ia-state-title">Combat</div>
+            <ul style="list-style:none;color:var(--text-dim);font-size:15px;line-height:2;">
+              <li>→ Type : mêlée ou distance</li>
+              <li>→ Portée d'attaque</li>
+              <li>→ Dégâts & délai</li>
+            </ul>
+          </div>
+          <div class="panel reveal" data-delay="12">
+            <div class="ia-state-title">Survie</div>
+            <ul style="list-style:none;color:var(--text-dim);font-size:15px;line-height:2;">
+              <li>→ Points de vie max</li>
+              <li>→ Seuil de fuite</li>
+              <li>→ Vitesse de repli</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span>◈ What's Next? — 2025</span>
+    <span>RPG · CO-OP · PUZZLE · PYTHON</span>
+    <span>v1.0.0</span>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
