@@ -8,6 +8,7 @@ class Room:
         self.tile_height = self.data.tileheight
         self.collisions = []
         self.items = []
+        self.doors = []
 
         for layer in self.data.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "wall tuiles":
@@ -27,6 +28,12 @@ class Room:
                     "rect": pygame.Rect(obj.x, obj.y, obj.width, obj.height),
                     "visible": True
                 })
+            elif obj.type == "porte":
+                self.doors.append({
+                    "name": obj.name,
+                    "rect": pygame.Rect(obj.x, obj.y, obj.width, obj.height),
+                    "target": obj.properties.get("target", None)
+                })
 
     def draw(self, surface):
         for layer in self.data.visible_layers:
@@ -43,3 +50,13 @@ class Room:
                 item["visible"] = False
                 collected.append(item["name"])
         return collected
+
+    def check_doors(self, rect1, rect2):
+        for door in self.doors:
+            p1_on = rect1.colliderect(door["rect"])
+            p2_on = rect2.colliderect(door["rect"])
+            if p1_on and p2_on:
+                return "both", door["target"]
+            elif p1_on or p2_on:
+                return "one", door["name"]
+        return None, None

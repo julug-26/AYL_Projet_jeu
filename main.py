@@ -12,7 +12,12 @@ screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 
-room = Room("assets/maps/premiere salle donjon.tmx")
+rooms = {
+    "salle1": Room("assets/maps/premiere salle donjon.tmx"),
+    "salle2": Room("assets/maps/map 2.tmx")
+}
+current_room_key = "salle1"
+room = rooms[current_room_key]
 
 controls1 = {
     "left": pygame.K_LEFT,
@@ -47,11 +52,23 @@ while running:
 
     p1_rect = pygame.Rect(player1.x, player1.y, 48, 64)
     p2_rect = pygame.Rect(player2.x, player2.y, 48, 64)
+
     for rect in [p1_rect, p2_rect]:
         collected = room.check_items(rect)
         for item in collected:
             notification = f"Ramassé : {item}"
             notification_timer = 3000
+
+    door_status, door_info = room.check_doors(p1_rect, p2_rect)
+    if door_status == "both" and door_info:
+        current_room_key = door_info
+        room = rooms[current_room_key]
+        player1.x, player1.y = 300, 300
+        player2.x, player2.y = 200, 300
+        notification = None
+    elif door_status == "one":
+        notification = "Les deux joueurs doivent atteindre la porte de sortie"
+        notification_timer = 3000
 
     screen.fill((0, 0, 0))
     room.draw(screen)
