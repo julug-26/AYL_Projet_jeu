@@ -1,8 +1,8 @@
 import pygame
 
 class Player:
-    def __init__(self, x, y):
-        self.spritesheet = pygame.image.load("assets/spritepersobleu.png").convert_alpha()
+    def __init__(self, x, y, sprite_path, controls):
+        self.spritesheet = pygame.image.load(sprite_path).convert_alpha()
         self.frame_w = 125
         self.frame_h = 166
         self.x = x
@@ -11,6 +11,7 @@ class Player:
         self.frame = 0
         self.direction = 0
         self.flip = False
+        self.controls = controls
 
     def get_frame(self):
         return self.spritesheet.subsurface((
@@ -24,20 +25,20 @@ class Player:
         keys = pygame.key.get_pressed()
         moved = False
 
-        if keys[pygame.K_LEFT]:
+        if keys[self.controls["left"]]:
             self.x -= self.speed
             self.direction = 1
             self.flip = True
             moved = True
-        if keys[pygame.K_RIGHT]:
+        if keys[self.controls["right"]]:
             self.x += self.speed
             self.direction = 1
             self.flip = False
             moved = True
-        if keys[pygame.K_UP]:
+        if keys[self.controls["up"]]:
             self.y -= self.speed
             moved = True
-        if keys[pygame.K_DOWN]:
+        if keys[self.controls["down"]]:
             self.y += self.speed
             moved = True
 
