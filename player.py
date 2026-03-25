@@ -21,29 +21,42 @@ class Player:
             self.frame_h
         ))
 
-    def update(self):
+    def get_input(self):
+        """Prépare les inputs à envoyer au serveur."""
         keys = pygame.key.get_pressed()
+        dx = dy = 0
         moved = False
 
         if keys[self.controls["left"]]:
-            self.x -= self.speed
+            dx -= self.speed
             self.direction = 1
             self.flip = True
             moved = True
         if keys[self.controls["right"]]:
-            self.x += self.speed
+            dx += self.speed
             self.direction = 1
             self.flip = False
             moved = True
         if keys[self.controls["up"]]:
-            self.y -= self.speed
+            dy -= self.speed
             moved = True
         if keys[self.controls["down"]]:
-            self.y += self.speed
+            dy += self.speed
             moved = True
 
         if moved:
             self.frame = (self.frame + 1) % 4
+
+        # On envoie la nouvelle position proposée
+        return {
+            "x": self.x + dx,
+            "y": self.y + dy
+        }
+
+    def apply_state(self, state_dict):
+        """Applique la position officielle venant du serveur."""
+        self.x = state_dict.get("x", self.x)
+        self.y = state_dict.get("y", self.y)
 
     def draw(self, surface):
         frame = self.get_frame()
