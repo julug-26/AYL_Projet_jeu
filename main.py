@@ -41,7 +41,7 @@ else:
     my_player = player2
     my_key = "player2"
 
-network.connect_to_server('163.5.3.90')  # Change IP si LAN
+network.connect_to_server('10.90.128.227')  # Change IP si LAN
 
 running = True
 while running:
