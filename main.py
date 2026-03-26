@@ -60,6 +60,7 @@ while running:
             notification_timer = 3000
 
     door_status, door_info = room.check_doors(p1_rect, p2_rect)
+    room.check_plaques(p1_rect, p2_rect)
     if door_status == "both" and door_info:
         current_room_key = door_info
         room = rooms[current_room_key]
@@ -67,7 +68,7 @@ while running:
         player2.x, player2.y = 200, 300
         notification = None
     elif door_status == "one":
-        notification = "Les deux joueurs doivent atteindre la porte de sortie"
+        notification = "Les deux joueurs doivent atteindre la porte de sortie !"
         notification_timer = 3000
 
     screen.fill((0, 0, 0))

@@ -9,9 +9,11 @@ class Room:
         self.collisions = []
         self.items = []
         self.doors = []
+        self.plaques = []
+        self.wall_replace_active = True
 
         for layer in self.data.visible_layers:
-            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "wall tuiles":
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name in ("wall tuiles", "wall", "WALL REPLACE"):
                 for x, y, gid in layer:
                     if gid:
                         self.collisions.append(pygame.Rect(
@@ -34,10 +36,29 @@ class Room:
                     "rect": pygame.Rect(obj.x, obj.y, obj.width, obj.height),
                     "target": obj.properties.get("target", None)
                 })
+            elif obj.type == "plaque":
+                self.plaques.append({
+                    "name": obj.name,
+                    "rect": pygame.Rect(obj.x, obj.y, obj.width, obj.height),
+                })
+
+        self.wall_replace_rects = []
+        for layer in self.data.layers:
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "WALL REPLACE":
+                for x, y, gid in layer:
+                    if gid:
+                        self.wall_replace_rects.append(pygame.Rect(
+                            x * self.tile_width,
+                            y * self.tile_height,
+                            self.tile_width,
+                            self.tile_height
+                        ))
 
     def draw(self, surface):
         for layer in self.data.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
+                if layer.name == "WALL REPLACE" and not self.wall_replace_active:
+                    continue
                 for x, y, gid in layer:
                     tile = self.data.get_tile_image_by_gid(gid)
                     if tile:
@@ -60,3 +81,10 @@ class Room:
             elif p1_on or p2_on:
                 return "one", door["name"]
         return None, None
+
+    def check_plaques(self, rect1, rect2):
+        for plaque in self.plaques:
+            if rect1.colliderect(plaque["rect"]) or rect2.colliderect(plaque["rect"]):
+                self.wall_replace_active = False
+                return
+        self.wall_replace_active = True
