@@ -11,9 +11,11 @@ class Room:
         self.doors = []
         self.plaques = []
         self.wall_replace_active = True
+        self.wall_replace_collisions = []
+        self.wall_replace_rects = []
 
-        for layer in self.data.visible_layers:
-            if isinstance(layer, pytmx.TiledTileLayer) and layer.name in ("wall tuiles", "wall", "WALL REPLACE"):
+        for layer in self.data.layers:
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name in ("wall tuiles", "wall"):
                 for x, y, gid in layer:
                     if gid:
                         self.collisions.append(pygame.Rect(
@@ -22,6 +24,19 @@ class Room:
                             self.tile_width,
                             self.tile_height
                         ))
+
+        for layer in self.data.layers:
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "WALL REPLACE":
+                for x, y, gid in layer:
+                    if gid:
+                        r = pygame.Rect(
+                            x * self.tile_width,
+                            y * self.tile_height,
+                            self.tile_width,
+                            self.tile_height
+                        )
+                        self.wall_replace_collisions.append(r)
+                        self.collisions.append(r)
 
         for obj in self.data.objects:
             if obj.type == "collectible":
@@ -41,18 +56,6 @@ class Room:
                     "name": obj.name,
                     "rect": pygame.Rect(obj.x, obj.y, obj.width, obj.height),
                 })
-
-        self.wall_replace_rects = []
-        for layer in self.data.layers:
-            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "WALL REPLACE":
-                for x, y, gid in layer:
-                    if gid:
-                        self.wall_replace_rects.append(pygame.Rect(
-                            x * self.tile_width,
-                            y * self.tile_height,
-                            self.tile_width,
-                            self.tile_height
-                        ))
 
     def draw(self, surface):
         for layer in self.data.visible_layers:
@@ -86,5 +89,11 @@ class Room:
         for plaque in self.plaques:
             if rect1.colliderect(plaque["rect"]) or rect2.colliderect(plaque["rect"]):
                 self.wall_replace_active = False
+                for r in self.wall_replace_collisions:
+                    if r in self.collisions:
+                        self.collisions.remove(r)
                 return
         self.wall_replace_active = True
+        for r in self.wall_replace_collisions:
+            if r not in self.collisions:
+                self.collisions.append(r)
