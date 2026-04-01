@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="4">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="6" nextobjectid="6">
  <tileset firstgid="1" source="tiled/donjon 1.tsx"/>
  <tileset firstgid="3073" source="../../../../tiled/donjon 1.tsx"/>
  <layer id="1" name="sol" width="20" height="15">
@@ -81,5 +81,10 @@
  <objectgroup id="4" name="objet">
   <object id="2" name="plaque 2" type="plaque" x="61.6349" y="129.003" width="35.8343" height="32.9675"/>
   <object id="3" name="plaque 1" type="plaque" x="63.0683" y="350.459" width="31.5342" height="32.2508"/>
+  <object id="5" name="porte back vers 1" type="porte" x="286.352" y="412.577" width="97.3741" height="34.6219">
+   <properties>
+    <property name="target" value="salle1"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>

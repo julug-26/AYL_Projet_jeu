@@ -12,7 +12,7 @@ class Room:
         self.plaques = []
         self.wall_replace_active = True
         self.wall_replace_collisions = []
-        self.wall_replace_rects = []
+        self.anim_timer = 0
 
         for layer in self.data.layers:
             if isinstance(layer, pytmx.TiledTileLayer) and layer.name in ("wall tuiles", "wall"):
@@ -57,13 +57,31 @@ class Room:
                     "rect": pygame.Rect(obj.x, obj.y, obj.width, obj.height),
                 })
 
-    def draw(self, surface):
+    def draw(self, surface, dt):
+        self.anim_timer += dt
+
         for layer in self.data.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 if layer.name == "WALL REPLACE" and not self.wall_replace_active:
                     continue
                 for x, y, gid in layer:
-                    tile = self.data.get_tile_image_by_gid(gid)
+                    if gid == 0:
+                        continue
+                    tile_props = self.data.get_tile_properties_by_gid(gid)
+                    if tile_props and "frames" in tile_props:
+                        frames = tile_props["frames"]
+                        total_duration = sum(f.duration for f in frames)
+                        t = self.anim_timer % total_duration
+                        elapsed = 0
+                        current_gid = frames[0].gid
+                        for f in frames:
+                            elapsed += f.duration
+                            if t < elapsed:
+                                current_gid = f.gid
+                                break
+                        tile = self.data.get_tile_image_by_gid(current_gid)
+                    else:
+                        tile = self.data.get_tile_image_by_gid(gid)
                     if tile:
                         surface.blit(tile, (x * self.tile_width, y * self.tile_height))
 

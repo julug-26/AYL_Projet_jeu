@@ -4,16 +4,22 @@ from player import Player
 
 pygame.init()
 
-SCREEN_W = 800
-SCREEN_H = 600
 FPS = 60
 
+# Fenêtre temporaire pour charger la room
+screen = pygame.display.set_mode((1, 1))
+
+temp_room = Room("assets/maps/premiere salle donjon.tmx")
+SCREEN_W = temp_room.data.width * temp_room.data.tilewidth
+SCREEN_H = temp_room.data.height * temp_room.data.tileheight
+
+# Redimensionner la vraie fenêtre
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 
 rooms = {
-    "salle1": Room("assets/maps/premiere salle donjon.tmx"),
+    "salle1": temp_room,
     "salle2": Room("assets/maps/map 2.tmx")
 }
 current_room_key = "salle1"
@@ -61,6 +67,7 @@ while running:
 
     door_status, door_info = room.check_doors(p1_rect, p2_rect)
     room.check_plaques(p1_rect, p2_rect)
+
     if door_status == "both" and door_info:
         current_room_key = door_info
         room = rooms[current_room_key]
@@ -72,7 +79,7 @@ while running:
         notification_timer = 3000
 
     screen.fill((0, 0, 0))
-    room.draw(screen)
+    room.draw(screen, dt)
     player1.draw(screen)
     player2.draw(screen)
 
