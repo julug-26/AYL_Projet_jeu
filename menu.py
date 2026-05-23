@@ -21,6 +21,7 @@ pygame.display.init()
 dw, dh = pygame.display.get_desktop_sizes()[0]
 screen = pygame.display.set_mode((dw, dh), pygame.NOFRAME)
 W, H = screen.get_size()
+windowed = False
 
 pygame.display.set_caption("What's Next ?")
 clock = pygame.time.Clock()
@@ -116,6 +117,21 @@ def draw_button_custom(text, rect, mouse_pos, font):
 def draw_button(text, rect, mouse_pos):
     draw_button_custom(text, rect, mouse_pos, UI_FONT)
 
+def toggle_fullscreen():
+    global screen, windowed
+    windowed = not windowed
+    if windowed:
+        screen = pygame.display.set_mode((int(dw * 0.8), int(dh * 0.8)))
+    else:
+        screen = pygame.display.set_mode((dw, dh), pygame.NOFRAME)
+
+def draw_input_box(rect, text, active, font):
+    color = (100, 255, 100) if active else (180, 180, 180)
+    pygame.draw.rect(screen, (20, 20, 20), rect, border_radius=12)
+    pygame.draw.rect(screen, color, rect, 3, border_radius=12)
+    label = font.render(text or "Adresse IP de l'hote", True, WHITE if text else (150, 150, 150))
+    screen.blit(label, label.get_rect(midleft=(rect.left + 18, rect.centery)))
+
 def draw_gear():
     pygame.draw.rect(screen, (200, 200, 200), gear_rect, border_radius=10)
     pygame.draw.rect(screen, (0, 0, 0), gear_rect, 2, border_radius=10)
@@ -167,9 +183,12 @@ def options_menu():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                back_click()
-                return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    back_click()
+                    return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if back_btn.collidepoint(mouse_pos):
                     back_click()
@@ -205,26 +224,36 @@ def play_menu():
     btn_h = int(H * 0.11)
     btn_new = pygame.Rect(0, 0, btn_w, btn_h)
     btn_cont = pygame.Rect(0, 0, btn_w, btn_h)
+    btn_multi = pygame.Rect(0, 0, btn_w, btn_h)
     btn_back = pygame.Rect(0, 0, int(W * 0.25), int(H * 0.09))
-    btn_cont.center = (W // 2, int(H * 0.46))
-    btn_new.center = (W // 2, int(H * 0.62))
-    btn_back.center = (W // 2, int(H * 0.86))
+    btn_new.center = (W // 2, int(H * 0.40))
+    btn_cont.center = (W // 2, int(H * 0.54))
+    btn_multi.center = (W // 2, int(H * 0.68))
+    btn_back.center = (W // 2, int(H * 0.88))
 
     while True:
         mouse_pos = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                back_click()
-                return None
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    back_click()
+                    return None
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if btn_new.collidepoint(mouse_pos):
                     click()
-                    return "new"
+                    return {"mode": "local", "save": "new"}
                 if btn_cont.collidepoint(mouse_pos):
                     click()
-                    return "continue"
+                    return {"mode": "local", "save": "continue"}
+                if btn_multi.collidepoint(mouse_pos):
+                    click()
+                    choice = multiplayer_menu()
+                    if choice:
+                        return choice
                 if btn_back.collidepoint(mouse_pos):
                     back_click()
                     return None
@@ -238,8 +267,73 @@ def play_menu():
 
         title = title_mid.render("JOUER", True, GREEN)
         screen.blit(title, title.get_rect(center=(W // 2, int(H * 0.20))))
-        draw_button_custom("Continuer", btn_cont, mouse_pos, play_font)
         draw_button_custom("Nouvelle partie", btn_new, mouse_pos, play_font)
+        draw_button_custom("Continuer", btn_cont, mouse_pos, play_font)
+        draw_button_custom("Multijoueur en ligne", btn_multi, mouse_pos, play_font)
+        draw_button_custom("Retour", btn_back, mouse_pos, play_font)
+        pygame.display.flip()
+        clock.tick(60)
+
+def multiplayer_menu():
+    play_font = pygame.font.Font("assets/CinzelDecorative-Bold.ttf", int(H * 0.04))
+    title_mid = pygame.font.Font("assets/CinzelDecorative-Bold.ttf", int(H * 0.065))
+    btn_w = int(W * 0.36)
+    btn_h = int(H * 0.095)
+    btn_host = pygame.Rect(0, 0, btn_w, btn_h)
+    btn_join = pygame.Rect(0, 0, btn_w, btn_h)
+    btn_back = pygame.Rect(0, 0, int(W * 0.25), int(H * 0.09))
+    input_rect = pygame.Rect(0, 0, int(W * 0.36), int(H * 0.08))
+    btn_host.center = (W // 2, int(H * 0.40))
+    input_rect.center = (W // 2, int(H * 0.55))
+    btn_join.center = (W // 2, int(H * 0.67))
+    btn_back.center = (W // 2, int(H * 0.88))
+    ip_text = "127.0.0.1"
+    input_active = False
+
+    while True:
+        mouse_pos = pygame.mouse.get_pos()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    back_click()
+                    return None
+                if input_active:
+                    if event.key == pygame.K_BACKSPACE:
+                        ip_text = ip_text[:-1]
+                    elif event.key == pygame.K_RETURN:
+                        click()
+                        return {"mode": "join", "host": ip_text.strip() or "127.0.0.1"}
+                    elif event.unicode and len(ip_text) < 32:
+                        if event.unicode.isalnum() or event.unicode in ".:-":
+                            ip_text += event.unicode
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                input_active = input_rect.collidepoint(mouse_pos)
+                if btn_host.collidepoint(mouse_pos):
+                    click()
+                    return {"mode": "host", "host": "127.0.0.1"}
+                if btn_join.collidepoint(mouse_pos):
+                    click()
+                    return {"mode": "join", "host": ip_text.strip() or "127.0.0.1"}
+                if btn_back.collidepoint(mouse_pos):
+                    back_click()
+                    return None
+
+        frame = video_play.get_frame()
+        if frame is not None:
+            bg = apply_brightness(frame, brightness)
+            screen.blit(bg, (0, 0))
+        else:
+            screen.fill((0, 0, 0))
+
+        title = title_mid.render("MULTIJOUEUR", True, GREEN)
+        screen.blit(title, title.get_rect(center=(W // 2, int(H * 0.20))))
+        draw_button_custom("Creer une partie", btn_host, mouse_pos, play_font)
+        draw_input_box(input_rect, ip_text, input_active, play_font)
+        draw_button_custom("Rejoindre une partie", btn_join, mouse_pos, play_font)
         draw_button_custom("Retour", btn_back, mouse_pos, play_font)
         pygame.display.flip()
         clock.tick(60)
@@ -258,13 +352,16 @@ def main_menu():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                pygame.quit(); sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit(); sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if btn_play.collidepoint(mouse_pos):
                     click()
                     choice = play_menu()
-                    if choice in ("new", "continue"):
+                    if choice:
                         return choice
                 if btn_quit.collidepoint(mouse_pos):
                     click()

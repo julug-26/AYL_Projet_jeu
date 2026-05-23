@@ -1,44 +1,90 @@
-import socket
 import json
+import socket
 import threading
-import pygame
 
-sock = None
-game_state = {}
-last_send = 0
 
-def connect_to_server(ip='127.0.0.1', port=5555):
-    global sock
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((ip, port))
-    print(f"✅ Connecté à {ip}:{port}")
-    threading.Thread(target=receive_loop, daemon=True).start()
+class NetworkClient:
+    def __init__(self, host="127.0.0.1", port=5555):
+        self.host = host
+        self.port = port
+        self.sock = None
+        self.player_id = None
+        self.state = {"players": {}, "events": [], "connected": 0}
+        self.connected = False
+        self._lock = threading.Lock()
+        self._buffer = ""
 
-def send_inputs(inputs):
-    global last_send
-    if sock and sock.fileno() >= 0:
-        now = pygame.time.get_ticks()
-        if now - last_send > 50:  # 20 FPS réseau (anti-spam)
+    def connect(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.host, self.port))
+        self.connected = True
+        threading.Thread(target=self._receive_loop, daemon=True).start()
+
+    def send_player_state(self, player_state, event_type=None):
+        if not self.connected or not self.sock:
+            return
+
+        message = {
+            "type": "update",
+            "player": player_state,
+        }
+        if event_type:
+            message["event"] = event_type
+
+        self._send(message)
+
+    def get_state(self):
+        with self._lock:
+            return {
+                "players": {
+                    key: value.copy()
+                    for key, value in self.state.get("players", {}).items()
+                },
+                "events": [event.copy() for event in self.state.get("events", [])],
+                "connected": self.state.get("connected", 0),
+            }
+
+    def close(self):
+        self.connected = False
+        if self.sock:
             try:
-                sock.send(json.dumps(inputs).encode() + b'\n')
-                last_send = now
-            except:
-                pass  # Ignore erreurs
+                self.sock.close()
+            except OSError:
+                pass
 
-def receive_loop():
-    global game_state, sock
-    buffer = ""
-    while sock and sock.fileno() >= 0:
+    def _send(self, message):
         try:
-            data = sock.recv(1024).decode()
-            if not data:
+            payload = json.dumps(message).encode("utf-8") + b"\n"
+            self.sock.sendall(payload)
+        except OSError:
+            self.connected = False
+
+    def _receive_loop(self):
+        while self.connected:
+            try:
+                data = self.sock.recv(4096).decode("utf-8")
+                if not data:
+                    break
+                self._buffer += data
+                while "\n" in self._buffer:
+                    line, self._buffer = self._buffer.split("\n", 1)
+                    if line:
+                        self._handle_message(json.loads(line))
+            except (OSError, json.JSONDecodeError):
                 break
-            buffer += data
-            while '\n' in buffer:
-                msg, buffer = buffer.split('\n', 1)
-                try:
-                    game_state = json.loads(msg)
-                except:
-                    pass  # JSON foireux
-        except:
-            break
+        self.connected = False
+
+    def _handle_message(self, message):
+        if message.get("type") == "welcome":
+            self.player_id = message.get("player_id")
+            return
+
+        if message.get("type") != "state":
+            return
+
+        with self._lock:
+            self.state = {
+                "players": message.get("players", {}),
+                "events": message.get("events", []),
+                "connected": message.get("connected", 0),
+            }

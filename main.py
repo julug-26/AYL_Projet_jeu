@@ -1,10 +1,33 @@
 import pygame
+import argparse
 from room import Room
 from player import Player
 from menu import main_menu
+from network import NetworkClient
+from server import GameServer
+
+parser = argparse.ArgumentParser(description="What's Next")
+parser.add_argument("--network", choices=("local", "client"), default="local")
+parser.add_argument("--host", default="127.0.0.1")
+parser.add_argument("--port", type=int, default=5555)
+args = parser.parse_args()
+
+network_client = None
+local_server = None
+local_player_id = None
+last_network_event_id = 0
 
 # Lancement du menu
 mode = main_menu()
+if isinstance(mode, dict):
+    if mode.get("mode") == "host":
+        args.network = "client"
+        args.host = "127.0.0.1"
+    elif mode.get("mode") == "join":
+        args.network = "client"
+        args.host = mode.get("host", "127.0.0.1")
+    else:
+        args.network = "local"
 
 pygame.init()
 pygame.mixer.init()
@@ -22,6 +45,13 @@ SCREEN_H = temp_room.data.height * temp_room.data.tileheight
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
+fullscreen = True
+
+def toggle_fullscreen():
+    global screen, fullscreen
+    fullscreen = not fullscreen
+    flags = pygame.FULLSCREEN if fullscreen else 0
+    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
 
 rooms = {
     "salle1": temp_room,
@@ -49,35 +79,99 @@ controls2 = {
 spawn1 = rooms["salle1"].spawn
 player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "assets/spritepersobleu.png", controls1)
 player2 = Player((spawn1[0] + 50) if spawn1 else 200, spawn1[1] if spawn1 else 300, "assets/spritepersovert.png", controls2)
+players = {
+    "player1": player1,
+    "player2": player2,
+}
+
+if args.network == "client":
+    if isinstance(mode, dict) and mode.get("mode") == "host":
+        local_server = GameServer(port=args.port)
+        local_server.start_in_background()
+    network_client = NetworkClient(args.host, args.port)
+    try:
+        network_client.connect()
+        wait_start = pygame.time.get_ticks()
+        while network_client.connected and not network_client.player_id:
+            if pygame.time.get_ticks() - wait_start > 5000:
+                break
+            pygame.time.wait(10)
+        local_player_id = network_client.player_id
+        if local_player_id:
+            players[local_player_id].controls = controls1
+            print(f"Connecte au serveur comme {local_player_id}")
+        else:
+            print("Connexion impossible: aucun joueur attribue par le serveur")
+            network_client.close()
+            network_client = None
+            args.network = "local"
+    except OSError as error:
+        print(f"Connexion impossible au serveur {args.host}:{args.port}: {error}")
+        network_client = None
+        args.network = "local"
 
 font = pygame.font.SysFont(None, 36)
 notification = None
 notification_timer = 0
 
+def player_rect(player):
+    return pygame.Rect(player.x, player.y, 48, 64)
+
+def activate_local_leviers(player):
+    rect = player_rect(player)
+    room.activate_levier(rect, "levier 1")
+    room.activate_levier(rect, "levier 2")
+
 running = True
 while running:
     dt = clock.tick(FPS)
+    network_event = None
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_F11:
+                toggle_fullscreen()
             if event.key == pygame.K_ESCAPE:
                 running = False
-            if event.key == pygame.K_m:
-                p1_rect = pygame.Rect(player1.x, player1.y, 48, 64)
-                room.activate_levier(p1_rect, "levier 1")
-                room.activate_levier(p1_rect, "levier 2")
-            if event.key == pygame.K_e:
-                p2_rect = pygame.Rect(player2.x, player2.y, 48, 64)
-                room.activate_levier(p2_rect, "levier 1")
-                room.activate_levier(p2_rect, "levier 2")
+            if args.network == "client":
+                if event.key in (pygame.K_e, pygame.K_m) and local_player_id:
+                    activate_local_leviers(players[local_player_id])
+                    network_event = "interact"
+            else:
+                if event.key == pygame.K_m:
+                    activate_local_leviers(player1)
+                if event.key == pygame.K_e:
+                    activate_local_leviers(player2)
 
-    player1.update(room.collisions)
-    player2.update(room.collisions)
+    if args.network == "client" and local_player_id:
+        players[local_player_id].update(room.collisions)
 
-    p1_rect = pygame.Rect(player1.x, player1.y, 48, 64)
-    p2_rect = pygame.Rect(player2.x, player2.y, 48, 64)
+        state = network_client.get_state()
+        for player_id, player_state in state["players"].items():
+            if player_id != local_player_id and player_id in players:
+                players[player_id].apply_network_state(player_state)
+
+        for net_event in state["events"]:
+            if net_event.get("id", 0) <= last_network_event_id:
+                continue
+            last_network_event_id = net_event.get("id", last_network_event_id)
+            event_player_id = net_event.get("player_id")
+            if event_player_id != local_player_id and event_player_id in players:
+                if net_event.get("type") == "interact":
+                    activate_local_leviers(players[event_player_id])
+
+        network_client.send_player_state(
+            players[local_player_id].to_network_state(),
+            network_event,
+        )
+    else:
+        player1.update(room.collisions)
+        player2.update(room.collisions)
+
+    p1_rect = player_rect(player1)
+    p2_rect = player_rect(player2)
 
     for rect in [p1_rect, p2_rect]:
         collected = room.check_items(rect)
@@ -124,4 +218,8 @@ while running:
 
     pygame.display.flip()
 
+if network_client:
+    network_client.close()
+if local_server:
+    local_server.stop()
 pygame.quit()

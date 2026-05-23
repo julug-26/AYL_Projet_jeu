@@ -57,3 +57,19 @@ class Player:
         frame = pygame.transform.scale(frame, (48, 64))
         frame = pygame.transform.flip(frame, self.flip, False)
         surface.blit(frame, (self.x, self.y))
+
+    def to_network_state(self):
+        return {
+            "x": int(self.x),
+            "y": int(self.y),
+            "direction": int(self.direction),
+            "frame": int(self.frame),
+            "flip": bool(self.flip),
+        }
+
+    def apply_network_state(self, state):
+        self.x = int(state.get("x", self.x))
+        self.y = int(state.get("y", self.y))
+        self.direction = int(state.get("direction", self.direction))
+        self.frame = int(state.get("frame", self.frame))
+        self.flip = bool(state.get("flip", self.flip))

@@ -1,55 +1,158 @@
-import socket
+import argparse
 import json
+import socket
 import threading
+import time
 
-HOST = '0.0.0.0'
-PORT = 5555
-clients = []
-game_state = {
-    "player1": {"x": 300, "y": 300},
-    "player2": {"x": 400, "y": 300}
+
+DEFAULT_PLAYERS = {
+    "player1": {"x": 300, "y": 300, "direction": 0, "frame": 0, "flip": False},
+    "player2": {"x": 400, "y": 300, "direction": 0, "frame": 0, "flip": False},
 }
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server.bind((HOST, PORT))
-server.listen(2)
-print(f"Serveur sur {HOST}:{PORT}")
 
-def broadcast():
-    state_json = json.dumps(game_state)
-    for client in clients[:]:
+class GameServer:
+    def __init__(self, host="0.0.0.0", port=5555):
+        self.host = host
+        self.port = port
+        self.clients = {}
+        self.players = {key: value.copy() for key, value in DEFAULT_PLAYERS.items()}
+        self.events = []
+        self.next_event_id = 1
+        self.lock = threading.Lock()
+        self.running = True
+
+    def start(self):
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind((self.host, self.port))
+        server.listen(2)
+        server.settimeout(0.5)
+        print(f"Serveur lance sur {self.host}:{self.port}")
+
+        threading.Thread(target=self._broadcast_loop, daemon=True).start()
+
         try:
-            client.send(state_json.encode() + b'\n')
-        except:
-            clients.remove(client)
+            while self.running:
+                try:
+                    client_sock, addr = server.accept()
+                except socket.timeout:
+                    continue
+                player_id = self._next_player_id()
+                if not player_id:
+                    self._send(client_sock, {"type": "error", "message": "Partie complete"})
+                    client_sock.close()
+                    continue
 
-def handle_client(client_sock, player_id):
-    print(f"Joueur {player_id} connecté")
-    while True:
-        try:
-            data = client_sock.recv(1024).decode()
-            if data.strip():
-                inputs = json.loads(data.rstrip('\n'))
-                pid = inputs.get("player_id", player_id)  # Lit le player_id du client
-                game_state[pid] = {"x": inputs["x"], "y": inputs["y"]}
-                broadcast()
-        except:
-            break
-    client_sock.close()
-    clients.remove(client_sock)
-    print(f"Joueur {player_id} déconnecté")
+                with self.lock:
+                    self.clients[player_id] = client_sock
 
-client_count = 0
-while client_count < 2:
-    client_sock, addr = server.accept()
-    clients.append(client_sock)
-    threading.Thread(target=handle_client, args=(client_sock, f"player{client_count+1}"), daemon=True).start()
-    client_count += 1
+                print(f"{player_id} connecte depuis {addr[0]}:{addr[1]}")
+                self._send(client_sock, {"type": "welcome", "player_id": player_id})
+                threading.Thread(
+                    target=self._handle_client,
+                    args=(client_sock, player_id),
+                    daemon=True,
+                ).start()
+        except KeyboardInterrupt:
+            print("Arret serveur")
+        finally:
+            self.running = False
+            server.close()
 
-print("Les 2 joueurs connectés ! Serveur actif...")
-try:
-    while True:
-        pass
-except KeyboardInterrupt:
-    print("Arrêt serveur")
+    def start_in_background(self):
+        thread = threading.Thread(target=self.start, daemon=True)
+        thread.start()
+        time.sleep(0.2)
+        return thread
+
+    def stop(self):
+        self.running = False
+
+    def _next_player_id(self):
+        with self.lock:
+            for player_id in ("player1", "player2"):
+                if player_id not in self.clients:
+                    return player_id
+        return None
+
+    def _handle_client(self, client_sock, player_id):
+        buffer = ""
+        while self.running:
+            try:
+                data = client_sock.recv(4096).decode("utf-8")
+                if not data:
+                    break
+                buffer += data
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    if line:
+                        self._handle_message(player_id, json.loads(line))
+            except (OSError, json.JSONDecodeError):
+                break
+
+        with self.lock:
+            if self.clients.get(player_id) is client_sock:
+                del self.clients[player_id]
+        client_sock.close()
+        print(f"{player_id} deconnecte")
+
+    def _handle_message(self, player_id, message):
+        if message.get("type") != "update":
+            return
+
+        player = message.get("player", {})
+        with self.lock:
+            self.players[player_id] = {
+                "x": int(player.get("x", self.players[player_id]["x"])),
+                "y": int(player.get("y", self.players[player_id]["y"])),
+                "direction": int(player.get("direction", 0)),
+                "frame": int(player.get("frame", 0)),
+                "flip": bool(player.get("flip", False)),
+            }
+
+            event_type = message.get("event")
+            if event_type:
+                self.events.append({
+                    "id": self.next_event_id,
+                    "player_id": player_id,
+                    "type": event_type,
+                })
+                self.next_event_id += 1
+                self.events = self.events[-20:]
+
+    def _broadcast_loop(self):
+        while self.running:
+            self._broadcast_state()
+            time.sleep(1 / 30)
+
+    def _broadcast_state(self):
+        with self.lock:
+            message = {
+                "type": "state",
+                "players": {key: value.copy() for key, value in self.players.items()},
+                "events": [event.copy() for event in self.events],
+                "connected": len(self.clients),
+            }
+            clients = list(self.clients.items())
+
+        for player_id, client in clients:
+            try:
+                self._send(client, message)
+            except OSError:
+                with self.lock:
+                    if self.clients.get(player_id) is client:
+                        del self.clients[player_id]
+
+    def _send(self, client_sock, message):
+        payload = json.dumps(message).encode("utf-8") + b"\n"
+        client_sock.sendall(payload)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Serveur reseau pour What's Next")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=5555)
+    args = parser.parse_args()
+
+    GameServer(args.host, args.port).start()
