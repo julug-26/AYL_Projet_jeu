@@ -65,10 +65,10 @@ bg_main_src = pygame.image.load("assets/fond.png").convert()
 def scale_cover_img(img, w, h):
     iw, ih = img.get_size()
     s = max(w / iw, h / ih)
-    nw, nh = int(iw * s), int(ih * s)
+    nw, nh = max(int(iw * s), w), max(int(ih * s), h)
     scaled = pygame.transform.smoothscale(img, (nw, nh))
-    x = (nw - w) // 2
-    y = (nh - h) // 2
+    x = max(0, min((nw - w) // 2, nw - w))
+    y = max(0, min((nh - h) // 2, nh - h))
     return scaled.subsurface((x, y, w, h)).copy()
 
 background = scale_cover_img(bg_main_src, W, H)
