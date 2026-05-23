@@ -22,6 +22,10 @@ class Room:
         self.anim_timer = 0
         self.spawn = None
         self.both_plaques_required = False
+        self.plaque1_locked = False
+        self.plaque2_locked = False
+        self.levier1_activated = False
+        self.levier2_activated = False
 
         for layer in self.data.layers:
             if isinstance(layer, pytmx.TiledTileLayer) and layer.name in ("wall tuiles", "wall"):
@@ -92,8 +96,15 @@ class Room:
             elif obj.type == "spawn":
                 self.spawn = (obj.x, obj.y)
 
-    def draw(self, surface, dt):
+    def draw(self, surface, dt, p1_rect=None, p2_rect=None):
         self.anim_timer += dt
+        on_plaque = False
+        if p1_rect and p2_rect:
+            on_plaque = any(
+                p1_rect.colliderect(p["rect"]) or p2_rect.colliderect(p["rect"])
+                for p in self.plaques
+            )
+
         for layer in self.data.visible_layers:
             if isinstance(layer, pytmx.TiledTileLayer):
                 if layer.name in ("WALL REPLACE", "wall replace 1") and not self.wall_replace_active:
@@ -104,6 +115,27 @@ class Room:
                     continue
                 if layer.name == "wall bloque" and not self.wall_bloque_active:
                     continue
+                if layer.name == "inverse plaque" and not on_plaque:
+                    continue
+                if layer.name == "plaque 1":
+                    p1_on = p1_rect and any(p1_rect.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 1")
+                    p2_on = p2_rect and any(p2_rect.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 1")
+                    if not self.plaque1_locked and not (p1_on or p2_on):
+                        continue
+                if layer.name == "plaque 2":
+                    p1_on = p1_rect and any(p1_rect.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 2")
+                    p2_on = p2_rect and any(p2_rect.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 2")
+                    if not self.plaque2_locked and not (p1_on or p2_on):
+                        continue
+                if layer.name == "levier 1 actif" and not self.levier1_activated:
+                    continue
+                if layer.name == "levier 1 inactif" and self.levier1_activated:
+                    continue
+                if layer.name == "levier 2 actif" and not self.levier2_activated:
+                    continue
+                if layer.name == "levier 2 inactif" and self.levier2_activated:
+                    continue
+
                 for x, y, gid in layer:
                     if gid == 0:
                         continue
@@ -147,10 +179,17 @@ class Room:
         if self.both_plaques_required:
             if self.wall_bloque_active:
                 return
-            p1_on = any(rect1.colliderect(p["rect"]) for p in self.plaques)
-            p2_on = any(rect2.colliderect(p["rect"]) for p in self.plaques)
-            print(f"p1_on={p1_on}, p2_on={p2_on}, wall_replace_active={self.wall_replace_active}, wall_bloque_active={self.wall_bloque_active}")
-            if p1_on and p2_on:
+            p1_on_p1 = any(rect1.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 1")
+            p2_on_p1 = any(rect2.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 1")
+            p1_on_p2 = any(rect1.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 2")
+            p2_on_p2 = any(rect2.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 2")
+
+            plaque1_active = p1_on_p1 or p2_on_p1 or self.plaque1_locked
+            plaque2_active = p1_on_p2 or p2_on_p2 or self.plaque2_locked
+
+            if plaque1_active and plaque2_active:
+                self.plaque1_locked = True
+                self.plaque2_locked = True
                 self.wall_replace_active = False
                 for r in self.wall_replace_collisions:
                     if r in self.collisions:
@@ -178,11 +217,13 @@ class Room:
             if not levier["activated"] and levier["name"] == levier_name and player_rect.colliderect(levier["rect"].inflate(20, 20)):
                 levier["activated"] = True
                 if levier_name == "levier 1":
+                    self.levier1_activated = True
                     self.wall_replace3_active = False
                     for r in self.wall_replace3_collisions:
                         if r in self.collisions:
                             self.collisions.remove(r)
                 elif levier_name == "levier 2":
+                    self.levier2_activated = True
                     self.wall_replace2_active = False
                     for r in self.wall_replace2_collisions:
                         if r in self.collisions:

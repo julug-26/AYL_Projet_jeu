@@ -1,8 +1,16 @@
 import pygame
 from room import Room
 from player import Player
+from menu import main_menu
+
+# Lancement du menu
+mode = main_menu()
 
 pygame.init()
+pygame.mixer.init()
+pygame.mixer.music.load("assets/jean-paul-v-au-chateau-de-langeais-307767.mp3")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)
 
 FPS = 60
 screen = pygame.display.set_mode((1, 1))
@@ -11,7 +19,7 @@ temp_room = Room("assets/maps/premiere salle donjon.tmx")
 SCREEN_W = temp_room.data.width * temp_room.data.tilewidth
 SCREEN_H = temp_room.data.height * temp_room.data.tileheight
 
-screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 
@@ -54,6 +62,8 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
             if event.key == pygame.K_m:
                 p1_rect = pygame.Rect(player1.x, player1.y, 48, 64)
                 room.activate_levier(p1_rect, "levier 1")
@@ -93,7 +103,7 @@ while running:
         notification_timer = 3000
 
     screen.fill((0, 0, 0))
-    room.draw(screen, dt)
+    room.draw(screen, dt, p1_rect, p2_rect)
     player1.draw(screen)
     player2.draw(screen)
 
