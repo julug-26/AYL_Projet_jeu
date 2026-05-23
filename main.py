@@ -5,6 +5,7 @@ from player import Player
 from menu import main_menu
 from network import NetworkClient
 from server import GameServer
+from enemy import RoomEnemy, BossEnemy
 
 parser = argparse.ArgumentParser(description="What's Next")
 parser.add_argument("--network", choices=("local", "client"), default="local")
@@ -56,7 +57,8 @@ def toggle_fullscreen():
 rooms = {
     "salle1": temp_room,
     "salle2": Room("assets/maps/map 2.tmx"),
-    "salle3": Room("assets/maps/salle_3.tmx")
+    "salle3": Room("assets/maps/salle_3.tmx"),
+    "salle4": Room("assets/maps/salle_4.tmx")
 }
 rooms["salle3"].both_plaques_required = True
 
@@ -75,6 +77,9 @@ controls2 = {
     "up": pygame.K_z,
     "down": pygame.K_s
 }
+PLAYER1_ATTACK_KEYS = (pygame.K_RCTRL, pygame.K_KP0)
+PLAYER2_ATTACK_KEYS = (pygame.K_f,)
+NETWORK_ATTACK_KEYS = PLAYER1_ATTACK_KEYS + PLAYER2_ATTACK_KEYS + (pygame.K_SPACE,)
 
 spawn1 = rooms["salle1"].spawn
 player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "assets/spritepersobleu.png", controls1)
@@ -113,6 +118,8 @@ if args.network == "client":
 font = pygame.font.SysFont(None, 36)
 notification = None
 notification_timer = 0
+salle4_enemies = []
+salle4_boss_spawned = False
 
 def player_rect(player):
     return pygame.Rect(player.x, player.y, 48, 64)
@@ -121,6 +128,108 @@ def activate_local_leviers(player):
     rect = player_rect(player)
     room.activate_levier(rect, "levier 1")
     room.activate_levier(rect, "levier 2")
+
+def reset_room_state(room_key):
+    global salle4_enemies, salle4_boss_spawned
+    rooms[room_key].reset_state()
+    if room_key == "salle4":
+        salle4_enemies = [
+            RoomEnemy(90, 230, target_player=0, hp=45, speed=1.3, color=(210, 65, 55)),
+            RoomEnemy(520, 165, target_player=1, hp=45, speed=1.3, color=(210, 65, 55)),
+        ]
+        salle4_boss_spawned = False
+
+def set_players_on_room_spawn(room_key):
+    target_room = rooms[room_key]
+    p1_spawn = target_room.spawn_points.get("spawn J1 salle 4", target_room.spawn)
+    p2_spawn = target_room.spawn_points.get("spawn J2 salle 4", target_room.spawn)
+    if p1_spawn:
+        player1.x, player1.y = p1_spawn
+    else:
+        player1.x, player1.y = 300, 300
+    if p2_spawn:
+        player2.x, player2.y = p2_spawn
+    elif p1_spawn:
+        player2.x, player2.y = p1_spawn[0] + 50, p1_spawn[1]
+    else:
+        player2.x, player2.y = 200, 300
+    player1.hp = 100
+    player2.hp = 100
+    player1.invulnerability_timer = 0
+    player2.invulnerability_timer = 0
+
+def damage_enemies(attacking_players):
+    global notification, notification_timer
+    if current_room_key != "salle4":
+        return
+
+    for player in attacking_players:
+        attack_rect = player.rect.inflate(34, 34)
+        for enemy in salle4_enemies:
+            if enemy.alive and attack_rect.colliderect(enemy.rect):
+                enemy.take_damage(20)
+                notification = "Ennemi touche !"
+                notification_timer = 900
+                return
+
+def update_salle4_enemies():
+    global salle4_boss_spawned, salle4_enemies
+    if current_room_key != "salle4":
+        return
+
+    opened = room.levier1_activated and room.levier2_activated
+    if opened and not salle4_boss_spawned:
+        salle4_enemies = []
+        salle4_enemies.append(BossEnemy(305, 90))
+        salle4_boss_spawned = True
+
+    active_players = [player1, player2]
+    room_bounds = pygame.Rect(0, 0, SCREEN_W, SCREEN_H)
+    for enemy in salle4_enemies:
+        enemy.update(room.collisions, active_players, room_bounds)
+    salle4_enemies = [enemy for enemy in salle4_enemies if enemy.alive]
+
+def draw_salle4_enemies(surface):
+    if current_room_key != "salle4":
+        return
+    for enemy in salle4_enemies:
+        enemy.draw(surface)
+
+def show_credits():
+    credits_font = pygame.font.SysFont(None, 46)
+    title_font = pygame.font.SysFont(None, 64)
+    names = ["Nael", "Melissa", "Julia", "Hadrien", "Ghali"]
+    lines = ["Merci d'avoir joue", "", "Equipe"] + names + ["", "Fin"]
+    scroll_y = SCREEN_H
+    running_credits = True
+
+    while running_credits:
+        dt = clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
+                return
+
+        screen.fill((0, 0, 0))
+        y = scroll_y
+        for index, line in enumerate(lines):
+            font_to_use = title_font if index == 0 else credits_font
+            text = font_to_use.render(line, True, (230, 240, 230))
+            screen.blit(text, text.get_rect(center=(SCREEN_W // 2, int(y))))
+            y += 62
+
+        scroll_y -= dt * 0.04
+        if y < 0:
+            running_credits = False
+        pygame.display.flip()
+
+def restart_current_room():
+    global notification, notification_timer
+    reset_room_state(current_room_key)
+    set_players_on_room_spawn(current_room_key)
+    notification = "Un joueur est tombe ! Salle recommencee."
+    notification_timer = 3000
 
 running = True
 while running:
@@ -135,6 +244,14 @@ while running:
                 toggle_fullscreen()
             if event.key == pygame.K_ESCAPE:
                 running = False
+            if args.network == "client" and event.key in NETWORK_ATTACK_KEYS:
+                if local_player_id:
+                    damage_enemies([players[local_player_id]])
+            elif args.network != "client":
+                if event.key in PLAYER1_ATTACK_KEYS:
+                    damage_enemies([player1])
+                if event.key in PLAYER2_ATTACK_KEYS:
+                    damage_enemies([player2])
             if args.network == "client":
                 if event.key in (pygame.K_e, pygame.K_m) and local_player_id:
                     activate_local_leviers(players[local_player_id])
@@ -181,23 +298,31 @@ while running:
 
     door_status, door_info = room.check_doors(p1_rect, p2_rect)
     room.check_plaques(p1_rect, p2_rect)
+    update_salle4_enemies()
+    if current_room_key == "salle4" and salle4_boss_spawned and not salle4_enemies:
+        show_credits()
+        running = False
+        continue
 
-    if door_status == "both" and door_info:
+    room_restarted = player1.hp <= 0 or player2.hp <= 0
+    if room_restarted:
+        restart_current_room()
+        p1_rect = player_rect(player1)
+        p2_rect = player_rect(player2)
+
+    if not room_restarted and door_status == "both" and door_info:
         current_room_key = door_info
         room = rooms[current_room_key]
-        if room.spawn:
-            player1.x, player1.y = room.spawn[0], room.spawn[1]
-            player2.x, player2.y = room.spawn[0] + 50, room.spawn[1]
-        else:
-            player1.x, player1.y = 300, 300
-            player2.x, player2.y = 200, 300
+        set_players_on_room_spawn(current_room_key)
+        reset_room_state(current_room_key)
         notification = None
-    elif door_status == "one":
+    elif not room_restarted and door_status == "one":
         notification = "Les deux joueurs doivent atteindre la porte de sortie !"
         notification_timer = 3000
 
     screen.fill((0, 0, 0))
     room.draw(screen, dt, p1_rect, p2_rect)
+    draw_salle4_enemies(screen)
     player1.draw(screen)
     player2.draw(screen)
 
