@@ -127,3 +127,120 @@ class RoomEnemy:
  
         if self.attack_cooldown > 0:
             self.attack_cooldown -= 1
+ 
+        target = self._target(players)
+        moving = False
+        if target:
+            dx = target.rect.centerx - self.rect.centerx
+            dy = target.rect.centery - self.rect.centery
+            if dx != 0:
+                self.flip = dx < 0
+            dist = math.hypot(dx, dy)
+            if dist > 2:
+                self._move_towards(target.rect.center, collisions)
+                moving = True
+            if self.rect.colliderect(target.rect) and self.attack_cooldown == 0:
+                target.take_hit(self.rect.centerx, self.rect.centery, 8, collisions, bounds)
+                self.attack_cooldown = 55
+                self._set_anim("attack")
+                return
+ 
+        if self.state == "attack" and self.anim_frame >= self.anim_frames - 1:
+            self._set_anim("idle")
+ 
+        if self.state not in ("attack", "hurt"):
+            self._set_anim("walk" if moving else "idle")
+ 
+    def _target(self, players):
+        if self.target_player is not None:
+            return players[self.target_player]
+        return min(players, key=lambda player: self._distance_to(player.rect.center))
+ 
+    def _move_towards(self, target, collisions):
+        dx = target[0] - self.rect.centerx
+        dy = target[1] - self.rect.centery
+        dist = max(1, math.hypot(dx, dy))
+        move_x = int(self.speed * dx / dist)
+        move_y = int(self.speed * dy / dist)
+ 
+        old = self.rect.copy()
+        self.rect.x += move_x
+        if move_x < 0:
+            self.flip = True
+        elif move_x > 0:
+            self.flip = False
+        if any(self.rect.colliderect(wall) for wall in collisions):
+            self.rect.x = old.x
+        self.rect.y += move_y
+        if any(self.rect.colliderect(wall) for wall in collisions):
+            self.rect.y = old.y
+ 
+    def _distance_to(self, point):
+        return abs(self.rect.centerx - point[0]) + abs(self.rect.centery - point[1])
+ 
+    def take_damage(self, amount):
+        self.hp -= amount
+        if self.hp <= 0:
+            self.alive = False
+            self._set_anim("death")
+        else:
+            self._set_anim("hurt")
+ 
+    def draw(self, surface, dt=16):
+        self._advance_anim(dt)
+        frame = _get_frame(self.anim_sheet, self.anim_frame)
+        scaled = pygame.transform.scale(frame, self.draw_size)
+        if self.flip:
+            scaled = pygame.transform.flip(scaled, True, False)
+        cx, cy = self.rect.center
+        surface.blit(scaled, (cx - self.draw_size[0] // 2, cy - self.draw_size[1] // 2))
+        if self.alive:
+            self._draw_hp(surface)
+ 
+    def _draw_hp(self, surface):
+        hp_w = int(self.rect.width * max(0, self.hp) / self.max_hp)
+        pygame.draw.rect(surface, (70, 20, 20), (self.rect.x, self.rect.y - 7, self.rect.width, 4))
+        pygame.draw.rect(surface, (230, 70, 70), (self.rect.x, self.rect.y - 7, hp_w, 4))
+ 
+ 
+class BossEnemy(RoomEnemy):
+    def __init__(self, x, y):
+        super().__init__(
+            x,
+            y,
+            target_player=None,
+            hp=140,
+            speed=1.2,
+            color=(130, 60, 210),
+        )
+        self.projectiles = []
+        self.shoot_cooldown = 80
+        self.draw_size = (96, 96)
+ 
+    def update(self, collisions, players, bounds=None):
+        super().update(collisions, players, bounds)
+        if not self.alive or self.state == "death":
+            return
+ 
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
+        else:
+            target = self._target(players)
+            self.projectiles.append(Projectile(
+                self.rect.centerx,
+                self.rect.centery,
+                target.rect.centerx,
+                target.rect.centery,
+            ))
+            self._set_anim("attack")
+            self.shoot_cooldown = 90
+ 
+        self.projectiles = [
+            p for p in self.projectiles
+            if p.update(collisions, players, bounds)
+        ]
+ 
+    def draw(self, surface, dt=16):
+        super().draw(surface, dt)
+        for p in self.projectiles:
+            p.draw(surface)
