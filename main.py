@@ -45,7 +45,7 @@ SCREEN_H = temp_room.data.height * temp_room.data.tileheight
 SALLE5_W = 960
 SALLE5_H = 640
 
-screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.NOFRAME)
+screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 fullscreen = False
