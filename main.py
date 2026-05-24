@@ -48,7 +48,7 @@ SALLE5_H = 640
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
-fullscreen = False
+fullscreen = True
 
 
 def toggle_fullscreen():
@@ -130,6 +130,7 @@ salle5_wave2_spawned = False
 salle5_wave3_spawned = False
 salle5_wave4_spawned = False
 salle5_bosses_spawned = False
+controls_timer = 10000
 
 def player_rect(player):
     return pygame.Rect(player.x, player.y, 48, 64)
@@ -442,6 +443,23 @@ while running:
         screen.blit(notif_surf, (rect_x, rect_y))
         pygame.draw.rect(screen, (255, 255, 255, 80), (rect_x, rect_y, rect_w, rect_h), 1, border_radius=6)
         screen.blit(text, (rect_x + pad, rect_y + pad))
+
+    if current_room_key == "salle1" and controls_timer > 0:
+        controls_timer -= dt
+        lines = ["ZQSD : Se deplacer", "E : Interagir", "F : Attaquer"]
+        tip_font = pygame.font.SysFont(None, 28)
+        pad = 10
+        line_h = tip_font.get_linesize()
+        box_w = 220
+        box_h = len(lines) * line_h + pad * 2
+        box_x = 10
+        box_y = SCREEN_H - box_h - 10
+        tip_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        tip_surf.fill((20, 20, 20, 160))
+        screen.blit(tip_surf, (box_x, box_y))
+        for i, line in enumerate(lines):
+            txt = tip_font.render(line, True, (255, 255, 255))
+            screen.blit(txt, (box_x + pad, box_y + pad + i * line_h))
 
     pygame.display.flip()
 
