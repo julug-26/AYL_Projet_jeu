@@ -5,7 +5,7 @@ from player import Player
 from menu import main_menu
 from network import NetworkClient
 from server import GameServer
-from enemy import RoomEnemy, BossEnemy
+from enemy import RoomEnemy, BossEnemy, ScorpioEnemy
 
 parser = argparse.ArgumentParser(description="What's Next")
 parser.add_argument("--network", choices=("local", "client"), default="local")
@@ -107,7 +107,7 @@ if args.network == "client":
             pygame.time.wait(10)
         local_player_id = network_client.player_id
         if local_player_id:
-            players[local_player_id].controls = controls2
+            players[local_player_id].controls = controls1
             print(f"Connecte au serveur comme {local_player_id}")
         else:
             print("Connexion impossible: aucun joueur attribue par le serveur")
@@ -122,8 +122,6 @@ if args.network == "client":
 font = pygame.font.SysFont(None, 36)
 notification = None
 notification_timer = 0
-SHORT_NOTIFICATION_MS = 2500
-LONG_NOTIFICATION_MS = 5000
 salle4_enemies = []
 salle4_boss_spawned = False
 salle5_enemies = []
@@ -161,9 +159,11 @@ def reset_room_state(room_key):
         salle5_wave4_spawned = False
         salle5_bosses_spawned = False
 
-def spawn_enemy_at(spawn_name, target_room):
+def spawn_enemy_at(spawn_name, target_room, scorpio=False):
     sp = target_room.spawn_points.get(spawn_name)
     if sp:
+        if scorpio:
+            return ScorpioEnemy(sp[0], sp[1], hp=45, speed=1.3)
         return RoomEnemy(sp[0], sp[1], hp=45, speed=1.3, color=(210, 65, 55))
     return None
 
@@ -200,8 +200,6 @@ def set_players_on_room_spawn(room_key):
     player2.hp = 100
     player1.invulnerability_timer = 0
     player2.invulnerability_timer = 0
-    player1.attack_cooldown = 0
-    player2.attack_cooldown = 0
 
 def damage_enemies(attacking_players):
     global notification, notification_timer
@@ -209,15 +207,12 @@ def damage_enemies(attacking_players):
     if not enemy_list:
         return
     for player in attacking_players:
-        if not player.can_attack():
-            continue
-        player.start_attack_cooldown()
         attack_rect = player.rect.inflate(34, 34)
         for enemy in enemy_list:
             if enemy.alive and attack_rect.colliderect(enemy.rect):
                 enemy.take_damage(20)
                 notification = "Ennemi touche !"
-                notification_timer = SHORT_NOTIFICATION_MS
+                notification_timer = 900
                 return
 
 def update_salle4_enemies():
@@ -261,13 +256,13 @@ def update_salle5_enemies():
 
     if not salle5_wave3_spawned and not r5.wall_replace3_active:
         for name in ("spawn ennemie 4", "spawn ennemie 5", "spawn ennemie 6", "spawn ennemie 7"):
-            e = spawn_enemy_at(name, r5)
+            e = spawn_enemy_at(name, r5, scorpio=True)
             if e:
                 salle5_enemies.append(e)
         salle5_wave3_spawned = True
 
     if not salle5_wave4_spawned and not r5.wall_replace4_active:
-        e8 = spawn_enemy_at("spawn ennemie 8", r5)
+        e8 = spawn_enemy_at("spawn ennemie 8", r5, scorpio=True)
         if e8:
             salle5_enemies.append(e8)
         salle5_wave4_spawned = True
@@ -306,7 +301,7 @@ def restart_current_room():
     reset_room_state(current_room_key)
     set_players_on_room_spawn(current_room_key)
     notification = "Un joueur est tombe ! Salle recommencee."
-    notification_timer = LONG_NOTIFICATION_MS
+    notification_timer = 3000
 
 salle5_surface = pygame.Surface((SALLE5_W, SALLE5_H))
 
@@ -383,7 +378,7 @@ while running:
         collected = room.check_items(rect)
         for item in collected:
             notification = f"Ramassé : {item}"
-            notification_timer = LONG_NOTIFICATION_MS
+            notification_timer = 3000
 
     door_status, door_info, door_trigger = room.check_doors(p1_rect, p2_rect)
     room.check_plaques(p1_rect, p2_rect)
@@ -406,7 +401,7 @@ while running:
         notification = None
     elif not room_restarted and door_status == "one":
         notification = "Les deux joueurs doivent atteindre la porte de sortie !"
-        notification_timer = LONG_NOTIFICATION_MS
+        notification_timer = 3000
 
     screen.fill((0, 0, 0))
 
@@ -425,7 +420,7 @@ while running:
         player2.draw(screen)
 
     if notification and notification_timer > 0:
-        notification_timer -= dt
+        notification_timer -= dt * 4
         small_font = pygame.font.SysFont(None, 24)
         text = small_font.render(notification, True, (255, 255, 255))
         pad = 10

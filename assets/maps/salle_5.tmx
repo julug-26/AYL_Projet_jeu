@@ -437,7 +437,7 @@
 </data>
  </layer>
  <objectgroup id="5" name="objet">
-  <object id="1" name="spawn ennemie 2" type="spawn ennemie" x="227" y="105">
+  <object id="1" name="spawn ennemie 2" type="spawn ennemie" x="163" y="133">
    <point/>
   </object>
   <object id="2" name="spawn ennemie 1" type="spawn ennemie" x="92" y="150">
