@@ -107,7 +107,7 @@ if args.network == "client":
             pygame.time.wait(10)
         local_player_id = network_client.player_id
         if local_player_id:
-            players[local_player_id].controls = controls1
+            players[local_player_id].controls = controls2
             print(f"Connecte au serveur comme {local_player_id}")
         else:
             print("Connexion impossible: aucun joueur attribue par le serveur")
