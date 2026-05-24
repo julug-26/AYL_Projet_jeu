@@ -306,6 +306,32 @@ def restart_current_room():
     notification = "Un joueur est tombe ! Salle recommencee."
     notification_timer = 3000
 
+def show_credits():
+    credits_font = pygame.font.SysFont(None, 46)
+    title_font = pygame.font.SysFont(None, 64)
+    names = ["Nael", "Melissa", "Julia", "Hadrien", "Ghali"]
+    lines = ["Merci d'avoir joue", "", "Equipe"] + names + ["", "Fin"]
+    scroll_y = SCREEN_H
+    running_credits = True
+    while running_credits:
+        dt = clock.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
+                return
+        screen.fill((0, 0, 0))
+        y = scroll_y
+        for index, line in enumerate(lines):
+            font_to_use = title_font if index == 0 else credits_font
+            text = font_to_use.render(line, True, (230, 240, 230))
+            screen.blit(text, text.get_rect(center=(SCREEN_W // 2, int(y))))
+            y += 62
+        scroll_y -= dt * 0.04
+        if y < 0:
+            running_credits = False
+        pygame.display.flip()
+
 salle5_surface = pygame.Surface((SALLE5_W, SALLE5_H))
 
 running = True
@@ -394,6 +420,12 @@ while running:
     room.check_plaques(p1_rect, p2_rect)
     update_salle4_enemies()
     update_salle5_enemies()
+
+    if (current_room_key == "salle5"
+            and salle5_bosses_spawned
+            and len(salle5_enemies) == 0):
+        show_credits()
+        running = False
 
     room_restarted = player1.hp <= 0 or player2.hp <= 0
     if room_restarted:
