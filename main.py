@@ -1,7 +1,7 @@
 import pygame
 import argparse
 from room import Room
-from player import Player
+from player import Player, J1_ANIM_MAP, J2_ANIM_MAP
 from menu import main_menu
 from network import NetworkClient
 from server import GameServer
@@ -86,8 +86,8 @@ PLAYER2_ATTACK_KEYS = (pygame.K_f,)
 NETWORK_ATTACK_KEYS = PLAYER1_ATTACK_KEYS + PLAYER2_ATTACK_KEYS + (pygame.K_SPACE,)
 
 spawn1 = rooms["salle1"].spawn
-player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "assets/spritepersobleu.png", controls1)
-player2 = Player((spawn1[0] + 50) if spawn1 else 200, spawn1[1] if spawn1 else 300, "assets/spritepersovert.png", controls2)
+player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "sprite/sprite_j1 copy", controls1, anim_map=J1_ANIM_MAP)
+player2 = Player((spawn1[0] + 50) if spawn1 else 200, spawn1[1] if spawn1 else 300, "sprite/sprite_j2/sprite_j2", controls2, anim_map=J2_ANIM_MAP)
 players = {
     "player1": player1,
     "player2": player2,
@@ -330,12 +330,19 @@ while running:
                 reset_room_state(current_room_key)
             if args.network == "client" and event.key in NETWORK_ATTACK_KEYS:
                 if local_player_id:
-                    damage_enemies([players[local_player_id]])
+                    p = players[local_player_id]
+                    if p.can_attack():
+                        damage_enemies([p])
+                        p.start_attack()
             elif args.network != "client":
                 if event.key in PLAYER1_ATTACK_KEYS:
-                    damage_enemies([player1])
+                    if player1.can_attack():
+                        damage_enemies([player1])
+                        player1.start_attack()
                 if event.key in PLAYER2_ATTACK_KEYS:
-                    damage_enemies([player2])
+                    if player2.can_attack():
+                        damage_enemies([player2])
+                        player2.start_attack()
             if args.network == "client":
                 if event.key in (pygame.K_e, pygame.K_m) and local_player_id:
                     activate_local_leviers(players[local_player_id])
