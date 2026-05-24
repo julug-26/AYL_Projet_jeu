@@ -254,7 +254,7 @@ class Player:
             frame = pygame.transform.flip(frame, self.flip, False)
         if self.invulnerability_timer > 0 and (self.invulnerability_timer // 5) % 2 == 0:
             frame = frame.copy()
-            frame.fill((255, 80, 80, 90), special_flags=pygame.BLEND_RGBA_ADD)
+            frame.fill((120, 0, 0), special_flags=pygame.BLEND_RGB_ADD)
         surface.blit(frame, (self.x, self.y))
 
         bar_w = SPRITE_SIZE[0]
