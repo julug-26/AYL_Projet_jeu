@@ -11,6 +11,7 @@ class Room:
         self.doors = []
         self.plaques = []
         self.leviers = []
+        self.spawn_points = {}
         self.wall_replace_active = True
         self.wall_replace_collisions = []
         self.wall_replace2_active = True
@@ -95,6 +96,25 @@ class Room:
                 })
             elif obj.type == "spawn":
                 self.spawn = (obj.x, obj.y)
+                self.spawn_points[obj.name] = (obj.x, obj.y)
+
+        self.base_collisions = list(self.collisions)
+
+    def reset_state(self):
+        self.collisions = list(self.base_collisions)
+        self.wall_replace_active = True
+        self.wall_replace2_active = True
+        self.wall_replace3_active = True
+        self.wall_bloque_active = False
+        self.plaque1_locked = False
+        self.plaque2_locked = False
+        self.levier1_activated = False
+        self.levier2_activated = False
+
+        for item in self.items:
+            item["visible"] = True
+        for levier in self.leviers:
+            levier["activated"] = False
 
     def draw(self, surface, dt, p1_rect=None, p2_rect=None):
         self.anim_timer += dt
