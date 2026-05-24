@@ -48,7 +48,7 @@ SALLE5_H = 640
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.NOFRAME)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
-fullscreen = False
+fullscreen = True
 
 
 def toggle_fullscreen():
@@ -130,6 +130,7 @@ salle5_wave2_spawned = False
 salle5_wave3_spawned = False
 salle5_wave4_spawned = False
 salle5_bosses_spawned = False
+controls_timer = 10000
 
 def player_rect(player):
     return pygame.Rect(player.x, player.y, 48, 64)
