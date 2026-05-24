@@ -112,6 +112,12 @@ def draw_button_custom(text, rect, mouse_pos, font):
     pygame.draw.rect(screen, color, draw_rect, border_radius=max(12, draw_rect.height // 4))
     pygame.draw.rect(screen, (0, 0, 0), draw_rect, 3, border_radius=max(12, draw_rect.height // 4))
     label = font.render(text, True, (0, 0, 0))
+    lw = label.get_width()
+    if lw > draw_rect.width - 20:
+        shrink = (draw_rect.width - 20) / lw
+        new_size = max(10, int(font.size * shrink)) if hasattr(font, 'size') else max(10, int(H * 0.03))
+        small = pygame.font.Font("assets/CinzelDecorative-Bold.ttf", new_size)
+        label = small.render(text, True, (0, 0, 0))
     screen.blit(label, label.get_rect(center=draw_rect.center))
 
 def draw_button(text, rect, mouse_pos):
@@ -218,18 +224,16 @@ def options_menu():
         clock.tick(60)
 
 def play_menu():
-    play_font = pygame.font.Font("assets/CinzelDecorative-Bold.ttf", int(H * 0.045))
+    play_font = pygame.font.Font("assets/CinzelDecorative-Bold.ttf", int(H * 0.038))
     title_mid = pygame.font.Font("assets/CinzelDecorative-Bold.ttf", int(H * 0.075))
     btn_w = int(W * 0.34)
     btn_h = int(H * 0.11)
     btn_new = pygame.Rect(0, 0, btn_w, btn_h)
-    btn_cont = pygame.Rect(0, 0, btn_w, btn_h)
     btn_multi = pygame.Rect(0, 0, btn_w, btn_h)
     btn_back = pygame.Rect(0, 0, int(W * 0.25), int(H * 0.09))
-    btn_new.center = (W // 2, int(H * 0.40))
-    btn_cont.center = (W // 2, int(H * 0.54))
-    btn_multi.center = (W // 2, int(H * 0.68))
-    btn_back.center = (W // 2, int(H * 0.88))
+    btn_new.center = (W // 2, int(H * 0.44))
+    btn_multi.center = (W // 2, int(H * 0.60))
+    btn_back.center = (W // 2, int(H * 0.80))
 
     while True:
         mouse_pos = pygame.mouse.get_pos()
@@ -246,9 +250,6 @@ def play_menu():
                 if btn_new.collidepoint(mouse_pos):
                     click()
                     return {"mode": "local", "save": "new"}
-                if btn_cont.collidepoint(mouse_pos):
-                    click()
-                    return {"mode": "local", "save": "continue"}
                 if btn_multi.collidepoint(mouse_pos):
                     click()
                     choice = multiplayer_menu()
@@ -266,9 +267,8 @@ def play_menu():
             screen.fill((0, 0, 0))
 
         title = title_mid.render("JOUER", True, GREEN)
-        screen.blit(title, title.get_rect(center=(W // 2, int(H * 0.20))))
+        screen.blit(title, title.get_rect(center=(W // 2, int(H * 0.24))))
         draw_button_custom("Nouvelle partie", btn_new, mouse_pos, play_font)
-        draw_button_custom("Continuer", btn_cont, mouse_pos, play_font)
         draw_button_custom("Multijoueur en ligne", btn_multi, mouse_pos, play_font)
         draw_button_custom("Retour", btn_back, mouse_pos, play_font)
         pygame.display.flip()
