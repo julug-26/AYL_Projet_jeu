@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.12.0" orientation="orthogonal" renderorder="right-down" width="20" height="15" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="29">
  <tileset firstgid="1" source="tiled/donjon 1.tsx"/>
+ <tileset firstgid="3073" source="tiled/levier bleu.tsx"/>
+ <tileset firstgid="3074" source="tiled/cristalvert.tsx"/>
  <layer id="1" name="sol" width="20" height="15">
   <data encoding="csv">
 857,855,855,856,857,858,859,860,860,859,860,855,856,857,858,859,860,860,860,861,
@@ -65,7 +67,7 @@
   <object id="26" name="spawn salle 1" type="spawn" x="34.6423" y="188.904">
    <point/>
   </object>
-  <object id="28" name="porte 1" type="porte" x="456.576" y="38.2283" width="84.3908" height="71.4076">
+  <object id="28" name="porte 1" type="porte" x="456.576" y="38.2283" width="83.7498" height="31.666">
    <properties>
     <property name="target" value="salle2"/>
    </properties>
@@ -80,7 +82,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,817,818,817,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,817,817,813,0,0,0,0,0,0,0,0,0,1518,0,0,0,0,0,0,
+0,817,817,813,0,0,0,0,0,0,0,0,0,3074,0,0,0,0,0,0,
 0,818,817,817,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
