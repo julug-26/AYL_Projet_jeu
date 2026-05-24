@@ -14,6 +14,7 @@ class Player:
         self.controls = controls
         self.hp = 100
         self.invulnerability_timer = 0
+        self.attack_cooldown = 0
 
     @property
     def rect(self):
@@ -30,6 +31,8 @@ class Player:
     def update(self, collisions=[]):
         if self.invulnerability_timer > 0:
             self.invulnerability_timer -= 1
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
 
         keys = pygame.key.get_pressed()
         moved = False
@@ -60,6 +63,12 @@ class Player:
 
         if moved:
             self.frame = (self.frame + 1) % 4
+
+    def can_attack(self):
+        return self.attack_cooldown <= 0
+
+    def start_attack_cooldown(self):
+        self.attack_cooldown = 35
 
     def take_hit(self, from_x=None, from_y=None, damage=10, collisions=None, bounds=None):
         if self.invulnerability_timer > 0:

@@ -160,6 +160,8 @@ def set_players_on_room_spawn(room_key):
     player2.hp = 100
     player1.invulnerability_timer = 0
     player2.invulnerability_timer = 0
+    player1.attack_cooldown = 0
+    player2.attack_cooldown = 0
 
 def damage_enemies(attacking_players):
     global notification, notification_timer
@@ -167,6 +169,9 @@ def damage_enemies(attacking_players):
         return
 
     for player in attacking_players:
+        if not player.can_attack():
+            continue
+        player.start_attack_cooldown()
         attack_rect = player.rect.inflate(34, 34)
         for enemy in salle4_enemies:
             if enemy.alive and attack_rect.colliderect(enemy.rect):
