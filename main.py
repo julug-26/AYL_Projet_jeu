@@ -104,7 +104,7 @@ if args.network == "client":
             pygame.time.wait(10)
         local_player_id = network_client.player_id
         if local_player_id:
-            players[local_player_id].controls = controls1
+            players[local_player_id].controls = controls2
             print(f"Connecte au serveur comme {local_player_id}")
         else:
             print("Connexion impossible: aucun joueur attribue par le serveur")
@@ -119,6 +119,8 @@ if args.network == "client":
 font = pygame.font.SysFont(None, 36)
 notification = None
 notification_timer = 0
+SHORT_NOTIFICATION_MS = 2500
+LONG_NOTIFICATION_MS = 5000
 salle4_enemies = []
 salle4_boss_spawned = False
 
@@ -170,7 +172,7 @@ def damage_enemies(attacking_players):
             if enemy.alive and attack_rect.colliderect(enemy.rect):
                 enemy.take_damage(20)
                 notification = "Ennemi touche !"
-                notification_timer = 900
+                notification_timer = SHORT_NOTIFICATION_MS
                 return
 
 def update_salle4_enemies():
@@ -230,7 +232,7 @@ def restart_current_room():
     reset_room_state(current_room_key)
     set_players_on_room_spawn(current_room_key)
     notification = "Un joueur est tombe ! Salle recommencee."
-    notification_timer = 3000
+    notification_timer = LONG_NOTIFICATION_MS
 
 running = True
 while running:
@@ -295,7 +297,7 @@ while running:
         collected = room.check_items(rect)
         for item in collected:
             notification = f"Ramassé : {item}"
-            notification_timer = 3000
+            notification_timer = LONG_NOTIFICATION_MS
 
     door_status, door_info = room.check_doors(p1_rect, p2_rect)
     room.check_plaques(p1_rect, p2_rect)
@@ -319,7 +321,7 @@ while running:
         notification = None
     elif not room_restarted and door_status == "one":
         notification = "Les deux joueurs doivent atteindre la porte de sortie !"
-        notification_timer = 3000
+        notification_timer = LONG_NOTIFICATION_MS
 
     screen.fill((0, 0, 0))
     room.draw(screen, dt, p1_rect, p2_rect)
@@ -328,7 +330,7 @@ while running:
     player2.draw(screen)
 
     if notification and notification_timer > 0:
-        notification_timer -= dt * 4
+        notification_timer -= dt
         small_font = pygame.font.SysFont(None, 24)
         text = small_font.render(notification, True, (255, 255, 255))
         pad = 10

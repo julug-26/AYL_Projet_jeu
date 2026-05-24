@@ -160,8 +160,8 @@ class RoomEnemy:
         dx = target[0] - self.rect.centerx
         dy = target[1] - self.rect.centery
         dist = max(1, math.hypot(dx, dy))
-        move_x = int(self.speed * dx / dist)
-        move_y = int(self.speed * dy / dist)
+        move_x = self._step_towards(dx, dist)
+        move_y = self._step_towards(dy, dist)
  
         old = self.rect.copy()
         self.rect.x += move_x
@@ -174,6 +174,14 @@ class RoomEnemy:
         self.rect.y += move_y
         if any(self.rect.colliderect(wall) for wall in collisions):
             self.rect.y = old.y
+
+    def _step_towards(self, delta, dist):
+        if delta == 0:
+            return 0
+        step = int(round(self.speed * delta / dist))
+        if step == 0:
+            return 1 if delta > 0 else -1
+        return step
  
     def _distance_to(self, point):
         return abs(self.rect.centerx - point[0]) + abs(self.rect.centery - point[1])
