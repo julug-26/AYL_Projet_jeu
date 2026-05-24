@@ -18,7 +18,6 @@ local_server = None
 local_player_id = None
 last_network_event_id = 0
 
-# Lancement du menu
 mode = main_menu()
 if isinstance(mode, dict):
     if mode.get("mode") == "host":
@@ -47,6 +46,8 @@ screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 fullscreen = True
+
+
 
 def toggle_fullscreen():
     global screen, fullscreen
@@ -189,11 +190,11 @@ def update_salle4_enemies():
         enemy.update(room.collisions, active_players, room_bounds)
     salle4_enemies = [enemy for enemy in salle4_enemies if enemy.alive]
 
-def draw_salle4_enemies(surface):
+def draw_salle4_enemies(surface, dt):
     if current_room_key != "salle4":
         return
     for enemy in salle4_enemies:
-        enemy.draw(surface)
+        enemy.draw(surface, dt)
 
 def show_credits():
     credits_font = pygame.font.SysFont(None, 46)
@@ -322,7 +323,7 @@ while running:
 
     screen.fill((0, 0, 0))
     room.draw(screen, dt, p1_rect, p2_rect)
-    draw_salle4_enemies(screen)
+    draw_salle4_enemies(screen, dt)
     player1.draw(screen)
     player2.draw(screen)
 
