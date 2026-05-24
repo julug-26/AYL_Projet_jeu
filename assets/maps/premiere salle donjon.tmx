@@ -61,7 +61,7 @@
 </data>
  </layer>
  <objectgroup id="5" name="Calque d'Objets 1">
-  <object id="8" name="poiredetest" type="collectible" x="422.14" y="239.502">
+  <object id="8" name="cristal" type="collectible" x="422.14" y="239.502">
    <polygon points="0,0 16.056,-10.704 12.042,8.02801 0.669001,8.02801"/>
   </object>
   <object id="26" name="spawn salle 1" type="spawn" x="34.6423" y="188.904">
