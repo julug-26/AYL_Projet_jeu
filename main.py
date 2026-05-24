@@ -1,7 +1,7 @@
 import pygame
 import argparse
 from room import Room
-from player import Player, J1_ANIM_MAP, J2_ANIM_MAP
+from player import Player
 from menu import main_menu
 from network import NetworkClient
 from server import GameServer
@@ -45,7 +45,7 @@ SCREEN_H = temp_room.data.height * temp_room.data.tileheight
 SALLE5_W = 960
 SALLE5_H = 640
 
-screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.NOFRAME)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
 fullscreen = False
@@ -86,8 +86,8 @@ PLAYER2_ATTACK_KEYS = (pygame.K_f,)
 NETWORK_ATTACK_KEYS = PLAYER1_ATTACK_KEYS + PLAYER2_ATTACK_KEYS + (pygame.K_SPACE,)
 
 spawn1 = rooms["salle1"].spawn
-player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "sprite/sprite_j1 copy", controls1, anim_map=J1_ANIM_MAP)
-player2 = Player((spawn1[0] + 50) if spawn1 else 200, spawn1[1] if spawn1 else 300, "sprite/sprite_j2/sprite_j2", controls2, anim_map=J2_ANIM_MAP)
+player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "assets/spritepersobleu.png", controls1)
+player2 = Player((spawn1[0] + 50) if spawn1 else 200, spawn1[1] if spawn1 else 300, "assets/spritepersovert.png", controls2)
 players = {
     "player1": player1,
     "player2": player2,
@@ -107,7 +107,7 @@ if args.network == "client":
             pygame.time.wait(10)
         local_player_id = network_client.player_id
         if local_player_id:
-            players[local_player_id].controls = controls2
+            players[local_player_id].controls = controls1
             print(f"Connecte au serveur comme {local_player_id}")
         else:
             print("Connexion impossible: aucun joueur attribue par le serveur")
@@ -308,6 +308,7 @@ def restart_current_room():
 salle5_surface = pygame.Surface((SALLE5_W, SALLE5_H))
 
 running = True
+controls_timer = 10000
 while running:
     dt = clock.tick(FPS)
     network_event = None
@@ -332,19 +333,12 @@ while running:
                 reset_room_state(current_room_key)
             if args.network == "client" and event.key in NETWORK_ATTACK_KEYS:
                 if local_player_id:
-                    p = players[local_player_id]
-                    if p.can_attack():
-                        damage_enemies([p])
-                        p.start_attack()
+                    damage_enemies([players[local_player_id]])
             elif args.network != "client":
                 if event.key in PLAYER1_ATTACK_KEYS:
-                    if player1.can_attack():
-                        damage_enemies([player1])
-                        player1.start_attack()
+                    damage_enemies([player1])
                 if event.key in PLAYER2_ATTACK_KEYS:
-                    if player2.can_attack():
-                        damage_enemies([player2])
-                        player2.start_attack()
+                    damage_enemies([player2])
             if args.network == "client":
                 if event.key in (pygame.K_e, pygame.K_m) and local_player_id:
                     activate_local_leviers(players[local_player_id])
@@ -442,6 +436,23 @@ while running:
         screen.blit(notif_surf, (rect_x, rect_y))
         pygame.draw.rect(screen, (255, 255, 255, 80), (rect_x, rect_y, rect_w, rect_h), 1, border_radius=6)
         screen.blit(text, (rect_x + pad, rect_y + pad))
+
+    if current_room_key == "salle1" and controls_timer > 0:
+        controls_timer -= dt
+        lines = ["ZQSD : Se deplacer", "E : Interagir", "F : Attaquer"]
+        tip_font = pygame.font.SysFont(None, 28)
+        pad = 10
+        line_h = tip_font.get_linesize()
+        box_w = 220
+        box_h = len(lines) * line_h + pad * 2
+        box_x = 10
+        box_y = SCREEN_H - box_h - 10
+        tip_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        tip_surf.fill((20, 20, 20, 160))
+        screen.blit(tip_surf, (box_x, box_y))
+        for i, line in enumerate(lines):
+            txt = tip_font.render(line, True, (255, 255, 255))
+            screen.blit(txt, (box_x + pad, box_y + pad + i * line_h))
 
     pygame.display.flip()
 
