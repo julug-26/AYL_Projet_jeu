@@ -66,6 +66,7 @@ class RoomEnemy:
         self.flip = False
         self.attack_cooldown = 0
         self.alive = True
+        self.death_anim_done = False
 
         self.sheet_idle = _load("assets/Mummy_idle.png")
         self.sheet_walk = _load("assets/Mummy_walk.png")
@@ -115,6 +116,8 @@ class RoomEnemy:
             if self.state == "death":
                 if self.anim_frame < self.anim_frames - 1:
                     self.anim_frame += 1
+                else:
+                    self.death_anim_done = True
             else:
                 self.anim_frame = (self.anim_frame + 1) % self.anim_frames
 
@@ -256,6 +259,48 @@ class BossEnemy(RoomEnemy):
             hp=140,
             speed=1.2,
             color=(130, 60, 210),
+        )
+        self.projectiles = []
+        self.shoot_cooldown = 80
+        self.draw_size = (96, 96)
+
+    def update(self, collisions, players, bounds=None):
+        super().update(collisions, players, bounds)
+        if not self.alive or self.state == "death":
+            return
+
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
+        else:
+            target = self._target(players)
+            self.projectiles.append(Projectile(
+                self.rect.centerx,
+                self.rect.centery,
+                target.rect.centerx,
+                target.rect.centery,
+            ))
+            self._set_anim("attack")
+            self.shoot_cooldown = 90
+
+        self.projectiles = [
+            p for p in self.projectiles
+            if p.update(collisions, players, bounds)
+        ]
+
+    def draw(self, surface, dt=16):
+        super().draw(surface, dt)
+        for p in self.projectiles:
+            p.draw(surface)
+
+
+class ScorpioBoss(ScorpioEnemy):
+    def __init__(self, x, y):
+        super().__init__(
+            x,
+            y,
+            target_player=None,
+            hp=140,
+            speed=1.2,
         )
         self.projectiles = []
         self.shoot_cooldown = 80

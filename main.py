@@ -5,7 +5,7 @@ from player import Player, J1_ANIM_MAP, J2_ANIM_MAP
 from menu import main_menu
 from network import NetworkClient
 from server import GameServer
-from enemy import RoomEnemy, BossEnemy, ScorpioEnemy
+from enemy import RoomEnemy, BossEnemy, ScorpioEnemy, ScorpioBoss
 
 parser = argparse.ArgumentParser(description="What's Next")
 parser.add_argument("--network", choices=("local", "client"), default="local")
@@ -230,7 +230,7 @@ def update_salle4_enemies():
     room_bounds = pygame.Rect(0, 0, SCREEN_W, SCREEN_H)
     for enemy in salle4_enemies:
         enemy.update(room.collisions, active_players, room_bounds)
-    salle4_enemies = [e for e in salle4_enemies if e.alive]
+    salle4_enemies = [e for e in salle4_enemies if not e.death_anim_done]
 
 def update_salle5_enemies():
     global salle5_enemies, salle5_wave1_spawned, salle5_wave2_spawned
@@ -268,17 +268,19 @@ def update_salle5_enemies():
         salle5_wave4_spawned = True
 
     if not salle5_bosses_spawned and not r5.wall_replace5_active:
-        for name in ("spawn boss 1", "spawn boss 2"):
-            b = spawn_boss_at(name, r5)
-            if b:
-                salle5_enemies.append(b)
+        b1 = spawn_boss_at("spawn boss 1", r5)
+        if b1:
+            salle5_enemies.append(b1)
+        sp2 = r5.spawn_points.get("spawn boss 2")
+        if sp2:
+            salle5_enemies.append(ScorpioBoss(sp2[0], sp2[1]))
         salle5_bosses_spawned = True
 
     active_players = [player1, player2]
     room_bounds = pygame.Rect(0, 0, SALLE5_W, SALLE5_H)
     for enemy in salle5_enemies:
         enemy.update(r5.collisions, active_players, room_bounds)
-    salle5_enemies = [e for e in salle5_enemies if e.alive]
+    salle5_enemies = [e for e in salle5_enemies if not e.death_anim_done]
 
 def draw_enemies(surface, dt):
     if current_room_key == "salle4":

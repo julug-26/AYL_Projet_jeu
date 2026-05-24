@@ -20,6 +20,7 @@ class Room:
         self.wall_replace2_levier_locked = False
         self.wall_replace3_active = True
         self.wall_replace3_collisions = []
+        self.wall_replace3_levier_locked = False
         self.wall_replace4_active = True
         self.wall_replace4_collisions = []
         self.wall_replace5_active = True
@@ -135,6 +136,7 @@ class Room:
         self.wall_replace2_active = True
         self.wall_replace2_levier_locked = False
         self.wall_replace3_active = True
+        self.wall_replace3_levier_locked = False
         self.wall_replace4_active = True
         self.wall_replace5_active = True
         self.wall_bloque_active = False
@@ -298,10 +300,11 @@ class Room:
                     if r in self.collisions:
                         self.collisions.remove(r)
             else:
-                self.wall_replace3_active = True
-                for r in self.wall_replace3_collisions:
-                    if r not in self.collisions:
-                        self.collisions.append(r)
+                if not self.wall_replace3_levier_locked:
+                    self.wall_replace3_active = True
+                    for r in self.wall_replace3_collisions:
+                        if r not in self.collisions:
+                            self.collisions.append(r)
 
             if not self.plaques34_locked:
                 p1_on_p3 = any(rect1.colliderect(p["rect"]) for p in self.plaques if p["name"] == "plaque 3")
@@ -328,6 +331,10 @@ class Room:
                     self.wall_replace_active = False
                     self.wall_replace_levier_locked = True
                     for r in self.wall_replace_collisions:
+                        if r in self.collisions:
+                            self.collisions.remove(r)
+                    self.wall_replace3_active = False
+                    for r in self.wall_replace3_collisions:
                         if r in self.collisions:
                             self.collisions.remove(r)
                 elif levier_name == "levier 2":

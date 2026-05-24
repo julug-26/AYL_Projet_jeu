@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.11.2" name="donjon 1" tilewidth="32" tileheight="32" tilecount="3072" columns="64">
+<tileset version="1.10" tiledversion="1.12.0" name="donjon 1" tilewidth="32" tileheight="32" tilecount="3072" columns="64">
  <image source="../../tilesets/DungeonCrawl_ProjectUtumnoTileset.png" width="2048" height="1536"/>
+ <tile id="723">
+  <animation>
+   <frame tileid="723" duration="150"/>
+   <frame tileid="724" duration="150"/>
+  </animation>
+ </tile>
  <tile id="725">
   <animation>
    <frame tileid="733" duration="150"/>
