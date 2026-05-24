@@ -34,7 +34,16 @@ class Projectile:
 
 
 class RoomEnemy:
-    def __init__(self, x, y, target_player=None, hp=45, speed=1.4, color=(205, 55, 55)):
+    def __init__(
+            self,
+            x,
+            y,
+            target_player=None,
+            hp=45,
+            speed=1.4,
+            color=(205, 55, 55),
+            sprite_path="assets/tilesets/attaque_vert.webp",
+    ):
         self.rect = pygame.Rect(int(x), int(y), 30, 30)
         self.spawn = pygame.Vector2(self.rect.center)
         self.target_player = target_player
@@ -42,8 +51,17 @@ class RoomEnemy:
         self.max_hp = hp
         self.speed = speed
         self.color = color
+        self.sprite = self._load_sprite(sprite_path)
+        self.flip = False
         self.attack_cooldown = 0
         self.alive = True
+
+    def _load_sprite(self, sprite_path):
+        try:
+            image = pygame.image.load(sprite_path).convert_alpha()
+            return pygame.transform.smoothscale(image, (44, 44))
+        except pygame.error:
+            return None
 
     def update(self, collisions, players, bounds=None):
         if not self.alive:
@@ -73,6 +91,10 @@ class RoomEnemy:
 
         old = self.rect.copy()
         self.rect.x += move_x
+        if move_x < 0:
+            self.flip = True
+        elif move_x > 0:
+            self.flip = False
         if any(self.rect.colliderect(wall) for wall in collisions):
             self.rect.x = old.x
         self.rect.y += move_y
@@ -90,7 +112,11 @@ class RoomEnemy:
     def draw(self, surface):
         if not self.alive:
             return
-        pygame.draw.rect(surface, self.color, self.rect, border_radius=6)
+        if self.sprite:
+            sprite = pygame.transform.flip(self.sprite, self.flip, False)
+            surface.blit(sprite, sprite.get_rect(center=self.rect.center))
+        else:
+            pygame.draw.rect(surface, self.color, self.rect, border_radius=6)
         self._draw_hp(surface)
 
     def _draw_hp(self, surface):
@@ -101,7 +127,15 @@ class RoomEnemy:
 
 class BossEnemy(RoomEnemy):
     def __init__(self, x, y):
-        super().__init__(x, y, target_player=None, hp=140, speed=1.2, color=(130, 60, 210))
+        super().__init__(
+            x,
+            y,
+            target_player=None,
+            hp=140,
+            speed=1.2,
+            color=(130, 60, 210),
+            sprite_path="assets/tilesets/archer_rouge.webp",
+        )
         self.projectiles = []
         self.shoot_cooldown = 80
 
