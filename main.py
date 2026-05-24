@@ -42,24 +42,27 @@ temp_room = Room("assets/maps/premiere salle donjon.tmx")
 SCREEN_W = temp_room.data.width * temp_room.data.tilewidth
 SCREEN_H = temp_room.data.height * temp_room.data.tileheight
 
-screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
+SALLE5_W = 960
+SALLE5_H = 640
+
+screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.NOFRAME)
 pygame.display.set_caption("Mon jeu")
 clock = pygame.time.Clock()
-fullscreen = True
-
+fullscreen = False
 
 
 def toggle_fullscreen():
     global screen, fullscreen
     fullscreen = not fullscreen
-    flags = pygame.FULLSCREEN if fullscreen else 0
+    flags = pygame.FULLSCREEN if fullscreen else pygame.NOFRAME
     screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
 
 rooms = {
     "salle1": temp_room,
     "salle2": Room("assets/maps/map 2.tmx"),
     "salle3": Room("assets/maps/salle_3.tmx"),
-    "salle4": Room("assets/maps/salle_4.tmx")
+    "salle4": Room("assets/maps/salle_4.tmx"),
+    "salle5": Room("assets/maps/salle_5.tmx"),
 }
 rooms["salle3"].both_plaques_required = True
 
@@ -123,6 +126,12 @@ SHORT_NOTIFICATION_MS = 2500
 LONG_NOTIFICATION_MS = 5000
 salle4_enemies = []
 salle4_boss_spawned = False
+salle5_enemies = []
+salle5_wave1_spawned = False
+salle5_wave2_spawned = False
+salle5_wave3_spawned = False
+salle5_wave4_spawned = False
+salle5_bosses_spawned = False
 
 def player_rect(player):
     return pygame.Rect(player.x, player.y, 48, 64)
@@ -131,9 +140,12 @@ def activate_local_leviers(player):
     rect = player_rect(player)
     room.activate_levier(rect, "levier 1")
     room.activate_levier(rect, "levier 2")
+    room.activate_levier(rect, "levier 3")
 
 def reset_room_state(room_key):
     global salle4_enemies, salle4_boss_spawned
+    global salle5_enemies, salle5_wave1_spawned, salle5_wave2_spawned
+    global salle5_wave3_spawned, salle5_wave4_spawned, salle5_bosses_spawned
     rooms[room_key].reset_state()
     if room_key == "salle4":
         salle4_enemies = [
@@ -141,21 +153,49 @@ def reset_room_state(room_key):
             RoomEnemy(520, 165, target_player=1, hp=45, speed=1.3, color=(210, 65, 55)),
         ]
         salle4_boss_spawned = False
+    if room_key == "salle5":
+        salle5_enemies = []
+        salle5_wave1_spawned = False
+        salle5_wave2_spawned = False
+        salle5_wave3_spawned = False
+        salle5_wave4_spawned = False
+        salle5_bosses_spawned = False
+
+def spawn_enemy_at(spawn_name, target_room):
+    sp = target_room.spawn_points.get(spawn_name)
+    if sp:
+        return RoomEnemy(sp[0], sp[1], hp=45, speed=1.3, color=(210, 65, 55))
+    return None
+
+def spawn_boss_at(spawn_name, target_room):
+    sp = target_room.spawn_points.get(spawn_name)
+    if sp:
+        return BossEnemy(sp[0], sp[1])
+    return None
 
 def set_players_on_room_spawn(room_key):
     target_room = rooms[room_key]
-    p1_spawn = target_room.spawn_points.get("spawn J1 salle 4", target_room.spawn)
-    p2_spawn = target_room.spawn_points.get("spawn J2 salle 4", target_room.spawn)
-    if p1_spawn:
-        player1.x, player1.y = p1_spawn
+    if room_key == "salle5":
+        spawn = target_room.spawn_points.get("spawn 2 joueur", target_room.spawn)
+        if spawn:
+            player1.x, player1.y = spawn
+            player2.x, player2.y = spawn[0] + 50, spawn[1]
+        else:
+            player1.x, player1.y = 300, 300
+            player2.x, player2.y = 350, 300
     else:
-        player1.x, player1.y = 300, 300
-    if p2_spawn:
-        player2.x, player2.y = p2_spawn
-    elif p1_spawn:
-        player2.x, player2.y = p1_spawn[0] + 50, p1_spawn[1]
-    else:
-        player2.x, player2.y = 200, 300
+        p1_spawn = target_room.spawn_points.get("spawn J1 salle 4", target_room.spawn)
+        p2_spawn = target_room.spawn_points.get("spawn J2 salle 4", target_room.spawn)
+        if p1_spawn:
+            player1.x, player1.y = p1_spawn
+        else:
+            player1.x, player1.y = 300, 300
+        if p2_spawn:
+            player2.x, player2.y = p2_spawn
+        elif p1_spawn:
+            player2.x, player2.y = p1_spawn[0] + 50, p1_spawn[1]
+        else:
+            player2.x, player2.y = 200, 300
     player1.hp = 100
     player2.hp = 100
     player1.invulnerability_timer = 0
@@ -165,15 +205,15 @@ def set_players_on_room_spawn(room_key):
 
 def damage_enemies(attacking_players):
     global notification, notification_timer
-    if current_room_key != "salle4":
+    enemy_list = salle4_enemies if current_room_key == "salle4" else salle5_enemies if current_room_key == "salle5" else []
+    if not enemy_list:
         return
-
     for player in attacking_players:
         if not player.can_attack():
             continue
         player.start_attack_cooldown()
         attack_rect = player.rect.inflate(34, 34)
-        for enemy in salle4_enemies:
+        for enemy in enemy_list:
             if enemy.alive and attack_rect.colliderect(enemy.rect):
                 enemy.take_damage(20)
                 notification = "Ennemi touche !"
@@ -195,42 +235,71 @@ def update_salle4_enemies():
     room_bounds = pygame.Rect(0, 0, SCREEN_W, SCREEN_H)
     for enemy in salle4_enemies:
         enemy.update(room.collisions, active_players, room_bounds)
-    salle4_enemies = [enemy for enemy in salle4_enemies if enemy.alive]
+    salle4_enemies = [e for e in salle4_enemies if e.alive]
 
-def draw_salle4_enemies(surface, dt):
-    if current_room_key != "salle4":
+def update_salle5_enemies():
+    global salle5_enemies, salle5_wave1_spawned, salle5_wave2_spawned
+    global salle5_wave3_spawned, salle5_wave4_spawned, salle5_bosses_spawned
+    if current_room_key != "salle5":
         return
-    for enemy in salle4_enemies:
-        enemy.draw(surface, dt)
 
-def show_credits():
-    credits_font = pygame.font.SysFont(None, 46)
-    title_font = pygame.font.SysFont(None, 64)
-    names = ["Nael Belhadj Amara", "Melissa Gay", "Julia Guimaraes", "Hadrien Beaurepaire", "Ghali Bennani"]
-    lines = ["Merci d'avoir joué", "", "Equipe"] + names + ["", "Fin"]
-    scroll_y = SCREEN_H
-    running_credits = True
+    r5 = rooms["salle5"]
 
-    while running_credits:
-        dt = clock.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
-                return
+    if not salle5_wave1_spawned:
+        e1 = spawn_enemy_at("spawn ennemie 1", r5)
+        e2 = spawn_enemy_at("spawn ennemie 2", r5)
+        for e in [e1, e2]:
+            if e:
+                salle5_enemies.append(e)
+        salle5_wave1_spawned = True
 
-        screen.fill((0, 0, 0))
-        y = scroll_y
-        for index, line in enumerate(lines):
-            font_to_use = title_font if index == 0 else credits_font
-            text = font_to_use.render(line, True, (230, 240, 230))
-            screen.blit(text, text.get_rect(center=(SCREEN_W // 2, int(y))))
-            y += 62
+    if not salle5_wave2_spawned and not r5.wall_replace_active:
+        e3 = spawn_enemy_at("spawn ennemie 3", r5)
+        if e3:
+            salle5_enemies.append(e3)
+        salle5_wave2_spawned = True
 
-        scroll_y -= dt * 0.04
-        if y < 0:
-            running_credits = False
-        pygame.display.flip()
+    if not salle5_wave3_spawned and not r5.wall_replace3_active:
+        for name in ("spawn ennemie 4", "spawn ennemie 5", "spawn ennemie 6", "spawn ennemie 7"):
+            e = spawn_enemy_at(name, r5)
+            if e:
+                salle5_enemies.append(e)
+        salle5_wave3_spawned = True
+
+    if not salle5_wave4_spawned and not r5.wall_replace4_active:
+        e8 = spawn_enemy_at("spawn ennemie 8", r5)
+        if e8:
+            salle5_enemies.append(e8)
+        salle5_wave4_spawned = True
+
+    if not salle5_bosses_spawned and not r5.wall_replace5_active:
+        for name in ("spawn boss 1", "spawn boss 2"):
+            b = spawn_boss_at(name, r5)
+            if b:
+                salle5_enemies.append(b)
+        salle5_bosses_spawned = True
+
+    active_players = [player1, player2]
+    room_bounds = pygame.Rect(0, 0, SALLE5_W, SALLE5_H)
+    for enemy in salle5_enemies:
+        enemy.update(r5.collisions, active_players, room_bounds)
+    salle5_enemies = [e for e in salle5_enemies if e.alive]
+
+def draw_enemies(surface, dt):
+    if current_room_key == "salle4":
+        for e in salle4_enemies:
+            e.draw(surface, dt)
+    elif current_room_key == "salle5":
+        for e in salle5_enemies:
+            e.draw(surface, dt)
+
+def teleport_via_portail(door_info, trigger):
+    target = next((d for d in room.doors if d["name"] == door_info), None)
+    if target:
+        if trigger == "p1":
+            player1.x, player1.y = target["rect"].x + 32, target["rect"].y
+        else:
+            player2.x, player2.y = target["rect"].x + 32, target["rect"].y
 
 def restart_current_room():
     global notification, notification_timer
@@ -238,6 +307,8 @@ def restart_current_room():
     set_players_on_room_spawn(current_room_key)
     notification = "Un joueur est tombe ! Salle recommencee."
     notification_timer = LONG_NOTIFICATION_MS
+
+salle5_surface = pygame.Surface((SALLE5_W, SALLE5_H))
 
 running = True
 while running:
@@ -252,6 +323,16 @@ while running:
                 toggle_fullscreen()
             if event.key == pygame.K_ESCAPE:
                 running = False
+            if event.key == pygame.K_F1:
+                current_room_key = "salle4"
+                room = rooms[current_room_key]
+                set_players_on_room_spawn(current_room_key)
+                reset_room_state(current_room_key)
+            if event.key == pygame.K_F2:
+                current_room_key = "salle5"
+                room = rooms[current_room_key]
+                set_players_on_room_spawn(current_room_key)
+                reset_room_state(current_room_key)
             if args.network == "client" and event.key in NETWORK_ATTACK_KEYS:
                 if local_player_id:
                     damage_enemies([players[local_player_id]])
@@ -304,13 +385,10 @@ while running:
             notification = f"Ramassé : {item}"
             notification_timer = LONG_NOTIFICATION_MS
 
-    door_status, door_info = room.check_doors(p1_rect, p2_rect)
+    door_status, door_info, door_trigger = room.check_doors(p1_rect, p2_rect)
     room.check_plaques(p1_rect, p2_rect)
     update_salle4_enemies()
-    if current_room_key == "salle4" and salle4_boss_spawned and not salle4_enemies:
-        show_credits()
-        running = False
-        continue
+    update_salle5_enemies()
 
     room_restarted = player1.hp <= 0 or player2.hp <= 0
     if room_restarted:
@@ -318,7 +396,9 @@ while running:
         p1_rect = player_rect(player1)
         p2_rect = player_rect(player2)
 
-    if not room_restarted and door_status == "both" and door_info:
+    if not room_restarted and door_status == "portail" and door_info:
+        teleport_via_portail(door_info, door_trigger)
+    elif not room_restarted and door_status == "both" and door_info:
         current_room_key = door_info
         room = rooms[current_room_key]
         set_players_on_room_spawn(current_room_key)
@@ -329,10 +409,20 @@ while running:
         notification_timer = LONG_NOTIFICATION_MS
 
     screen.fill((0, 0, 0))
-    room.draw(screen, dt, p1_rect, p2_rect)
-    draw_salle4_enemies(screen, dt)
-    player1.draw(screen)
-    player2.draw(screen)
+
+    if current_room_key == "salle5":
+        salle5_surface.fill((0, 0, 0))
+        room.draw(salle5_surface, dt, p1_rect, p2_rect)
+        draw_enemies(salle5_surface, dt)
+        player1.draw(salle5_surface)
+        player2.draw(salle5_surface)
+        scaled = pygame.transform.scale(salle5_surface, (SCREEN_W, SCREEN_H))
+        screen.blit(scaled, (0, 0))
+    else:
+        room.draw(screen, dt, p1_rect, p2_rect)
+        draw_enemies(screen, dt)
+        player1.draw(screen)
+        player2.draw(screen)
 
     if notification and notification_timer > 0:
         notification_timer -= dt
