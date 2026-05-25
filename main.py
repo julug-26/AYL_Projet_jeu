@@ -132,6 +132,7 @@ salle5_wave4_spawned = False
 salle5_bosses_spawned = False
 controls_timer = 10000
 remote_enemies = []  # ennemis reçus du réseau (client seulement)
+both_door_frames = 0  # compteur de frames où les deux joueurs sont à la porte
 
 def _serialize_enemies():
     """Sérialise tous les ennemis actifs en liste de dicts pour le réseau."""
@@ -510,22 +511,33 @@ while running:
         p1_rect = player_rect(player1)
         p2_rect = player_rect(player2)
 
+    # Seul l'hôte (ou le mode local) décide du changement de salle
+    is_host_or_local = args.network != "client" or local_player_id == "player1"
+
     if not room_restarted and door_status == "portail" and door_info:
         teleport_via_portail(door_info, door_trigger)
-    elif not room_restarted and door_status == "both" and door_info:
-        current_room_key = door_info
-        room = rooms[current_room_key]
-        set_players_on_room_spawn(current_room_key)
-        reset_room_state(current_room_key)
-        notification = None
-        if args.network == "client" and local_player_id and network_client:
-            network_client.send_player_state(
-                players[local_player_id].to_network_state(),
-                room=current_room_key,
-            )
-    elif not room_restarted and door_status == "one":
+    elif is_host_or_local and not room_restarted and door_status == "both" and door_info:
+        both_door_frames += 1
+        # En réseau on attend 2 frames consécutives pour éviter les faux positifs dus au délai réseau
+        required_frames = 2 if args.network == "client" else 1
+        if both_door_frames >= required_frames:
+            both_door_frames = 0
+            current_room_key = door_info
+            room = rooms[current_room_key]
+            set_players_on_room_spawn(current_room_key)
+            reset_room_state(current_room_key)
+            notification = None
+            if args.network == "client" and local_player_id and network_client:
+                network_client.send_player_state(
+                    players[local_player_id].to_network_state(),
+                    room=current_room_key,
+                )
+    elif is_host_or_local and not room_restarted and door_status == "one":
+        both_door_frames = 0
         notification = "Les deux joueurs doivent atteindre la porte de sortie !"
         notification_timer = 3000
+    else:
+        both_door_frames = 0
 
     screen.fill((0, 0, 0))
 
