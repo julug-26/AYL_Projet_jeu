@@ -22,7 +22,7 @@ mode = main_menu()
 if isinstance(mode, dict):
     if mode.get("mode") == "host":
         args.network = "client"
-        args.host = "127.0.0.1"
+        args.host = mode.get("host", "127.0.0.1")
     elif mode.get("mode") == "join":
         args.network = "client"
         args.host = mode.get("host", "127.0.0.1")

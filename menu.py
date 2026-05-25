@@ -314,7 +314,17 @@ def multiplayer_menu():
                 input_active = input_rect.collidepoint(mouse_pos)
                 if btn_host.collidepoint(mouse_pos):
                     click()
-                    return {"mode": "host", "host": "127.0.0.1"}
+                    import socket as _socket
+                    def _get_local_ip():
+                        try:
+                            s = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+                            s.connect(("8.8.8.8", 80))
+                            ip = s.getsockname()[0]
+                            s.close()
+                            return ip
+                        except Exception:
+                            return "127.0.0.1"
+                    return {"mode": "host", "host": _get_local_ip()}
                 if btn_join.collidepoint(mouse_pos):
                     click()
                     return {"mode": "join", "host": ip_text.strip() or "127.0.0.1"}
