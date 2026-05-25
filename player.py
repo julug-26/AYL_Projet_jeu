@@ -1,640 +1,287 @@
 import pygame
-import argparse
-from room import Room
-from player import Player, J1_ANIM_MAP, J2_ANIM_MAP
-from menu import main_menu
-from network import NetworkClient
-from server import GameServer
-from enemy import RoomEnemy, BossEnemy, ScorpioEnemy, ScorpioBoss
+import os
+import re
 
-parser = argparse.ArgumentParser(description="What's Next")
-parser.add_argument("--network", choices=("local", "client"), default="local")
-parser.add_argument("--host", default="127.0.0.1")
-parser.add_argument("--port", type=int, default=5555)
-args = parser.parse_args()
+ANIM_SPEED = 8  # ticks de jeu entre chaque frame d'animation (60fps / 8 ≈ 7.5fps)
+SPRITE_SIZE = (48, 64)  # taille d'affichage et de collision
 
-network_client = None
-local_server = None
-local_player_id = None
-last_network_event_id = 0
-
-mode = main_menu()
-if isinstance(mode, dict):
-    if mode.get("mode") == "host":
-        args.network = "client"
-        args.host = "127.0.0.1"
-    elif mode.get("mode") == "join":
-        args.network = "client"
-        args.host = mode.get("host", "127.0.0.1")
-    else:
-        args.network = "local"
-
-pygame.init()
-pygame.mixer.init()
-pygame.mixer.music.load("assets/jean-paul-v-au-chateau-de-langeais-307767.mp3")
-pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1)
-
-FPS = 60
-screen = pygame.display.set_mode((1, 1))
-
-temp_room = Room("assets/maps/premiere salle donjon.tmx")
-SCREEN_W = temp_room.data.width * temp_room.data.tilewidth
-SCREEN_H = temp_room.data.height * temp_room.data.tileheight
-
-SALLE5_W = 960
-SALLE5_H = 640
-
-screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), pygame.FULLSCREEN)
-pygame.display.set_caption("Mon jeu")
-clock = pygame.time.Clock()
-fullscreen = True
-
-
-def toggle_fullscreen():
-    global screen, fullscreen
-    fullscreen = not fullscreen
-    flags = pygame.FULLSCREEN if fullscreen else pygame.NOFRAME
-    screen = pygame.display.set_mode((SCREEN_W, SCREEN_H), flags)
-
-rooms = {
-    "salle1": temp_room,
-    "salle2": Room("assets/maps/map 2.tmx"),
-    "salle3": Room("assets/maps/salle_3.tmx"),
-    "salle4": Room("assets/maps/salle_4.tmx"),
-    "salle5": Room("assets/maps/salle_5.tmx"),
-}
-rooms["salle3"].both_plaques_required = True
-
-current_room_key = "salle1"
-room = rooms[current_room_key]
-
-controls1 = {
-    "left": pygame.K_LEFT,
-    "right": pygame.K_RIGHT,
-    "up": pygame.K_UP,
-    "down": pygame.K_DOWN
-}
-controls2 = {
-    "left": pygame.K_q,
-    "right": pygame.K_d,
-    "up": pygame.K_z,
-    "down": pygame.K_s
-}
-PLAYER1_ATTACK_KEYS = (pygame.K_RCTRL, pygame.K_KP0)
-PLAYER2_ATTACK_KEYS = (pygame.K_f,)
-NETWORK_ATTACK_KEYS = PLAYER1_ATTACK_KEYS + PLAYER2_ATTACK_KEYS + (pygame.K_SPACE,)
-
-spawn1 = rooms["salle1"].spawn
-player1 = Player(spawn1[0] if spawn1 else 300, spawn1[1] if spawn1 else 300, "sprite/sprite_j1 copy", controls1, anim_map=J1_ANIM_MAP)
-player2 = Player((spawn1[0] + 50) if spawn1 else 200, spawn1[1] if spawn1 else 300, "sprite/sprite_j2/sprite_j2", controls2, anim_map=J2_ANIM_MAP)
-players = {
-    "player1": player1,
-    "player2": player2,
+J1_ANIM_MAP = {
+    "idle":             "pose immobile",
+    "droite":           "mouvement_droite",
+    "gauche":           "mouvement_gauche",
+    "dos":              "mouvement_dos",
+    "face":             "mouvement_face",
+    "diag_haut_droite": "mouvement_diagonale_haut_droite",
+    "diag_haut_gauche": "mouvement_diagonale_haut_gauche",
+    "diag_bas_droite":  "mouvement_diagonale_bas_droite",
+    "diag_bas_gauche":  "mouvement_diagonale_bas_gauche",
+    "attaque_droite":   "mvt attaque droite",
+    "attaque_gauche":   "mvt_attaque_gauche",
 }
 
-if args.network == "client":
-    if isinstance(mode, dict) and mode.get("mode") == "host":
-        local_server = GameServer(port=args.port)
-        local_server.start_in_background()
-    network_client = NetworkClient(args.host, args.port)
-    try:
-        network_client.connect()
-        wait_start = pygame.time.get_ticks()
-        while network_client.connected and not network_client.player_id:
-            if pygame.time.get_ticks() - wait_start > 5000:
+J2_ANIM_MAP = {
+    "idle":             "sprite_immobile",
+    "droite":           "mvt_cote_droit",
+    "gauche":           "mvt_cote_gauche",
+    "dos":              "mvt_dos",
+    "face":             "mvt_de_face",
+    "diag_haut_droite": "mvt_diagonale_haut_droit",
+    "diag_haut_gauche": "mvt_diagonale_haut_gauche",
+    "diag_bas_droite":  "mvt_diagonale_bas_droite",
+    "diag_bas_gauche":  "mvt_diagonale_bas_gauche",
+    "attaque_droite":   "mvt_attaque_droite",
+    "attaque_gauche":   "mvt_attaque_gauche",
+}
+
+
+def _load_dir_frames(dir_path):
+    """Charge tous les PNG d'un dossier, triés par valeur numérique dans le nom."""
+    if not os.path.isdir(dir_path):
+        return []
+    files = [f for f in os.listdir(dir_path) if f.lower().endswith('.png')]
+
+    def sort_key(name):
+        nums = re.findall(r'\d+', name)
+        return [int(n) for n in nums] if nums else [0]
+
+    files.sort(key=sort_key)
+    frames = []
+    for f in files:
+        try:
+            frames.append(pygame.image.load(os.path.join(dir_path, f)).convert_alpha())
+        except Exception:
+            pass
+    return frames
+
+
+class Player:
+    def __init__(self, x, y, sprite_path, controls, anim_map=None):
+        self.x = x
+        self.y = y
+        self.speed = 3
+        self.controls = controls
+        self.hp = 100
+        self.invulnerability_timer = 0
+        self.attack_cooldown = 0
+
+        # direction / flip : conservés pour état réseau et héritage
+        self.direction = 0
+        self.flip = False
+
+        # Champs héritage spritesheet
+        self.spritesheet = None
+        self.frame = 0
+        self.frame_w = 125
+        self.frame_h = 166
+
+        # Nouveau système d'animation par dossiers
+        self.animations = {}
+        self.anim_key = "face"  # direction par défaut au démarrage
+        self.anim_frame = 0
+        self.anim_tick = 0
+        self.is_attacking = False
+
+        if anim_map and os.path.isdir(sprite_path):
+            for key, subdir in anim_map.items():
+                frames = _load_dir_frames(os.path.join(sprite_path, subdir))
+                if frames:
+                    self.animations[key] = frames
+        else:
+            self.spritesheet = pygame.image.load(sprite_path).convert_alpha()
+
+    @property
+    def rect(self):
+        return pygame.Rect(self.x, self.y, SPRITE_SIZE[0], SPRITE_SIZE[1])
+
+    def _get_move_key(self, keys):
+        left  = keys[self.controls["left"]]
+        right = keys[self.controls["right"]]
+        up    = keys[self.controls["up"]]
+        down  = keys[self.controls["down"]]
+
+        if right and up:   return "diag_haut_droite"
+        if right and down: return "diag_bas_droite"
+        if left and up:    return "diag_haut_gauche"
+        if left and down:  return "diag_bas_gauche"
+        if right:          return "droite"
+        if left:           return "gauche"
+        if up:             return "dos"
+        if down:           return "face"
+        return None
+
+    def _advance_anim(self, new_key, loop=True):
+        """Change d'animation si besoin, avance la frame. Retourne True quand l'anim non-loopée est finie."""
+        if new_key != self.anim_key:
+            self.anim_key = new_key
+            self.anim_frame = 0
+            self.anim_tick = 0
+            return False
+
+        frames = self.animations.get(self.anim_key, [])
+        if not frames:
+            return True
+
+        self.anim_tick += 1
+        if self.anim_tick >= ANIM_SPEED:
+            self.anim_tick = 0
+            self.anim_frame += 1
+            if self.anim_frame >= len(frames):
+                if loop:
+                    self.anim_frame = 0
+                else:
+                    self.anim_frame = len(frames) - 1
+                    return True
+        return False
+
+    def get_frame(self):
+        if self.animations:
+            frames = self.animations.get(self.anim_key) or self.animations.get("face", [])
+            if frames:
+                return frames[min(self.anim_frame, len(frames) - 1)]
+            return None
+        return self.spritesheet.subsurface((
+            self.frame * self.frame_w,
+            self.direction * self.frame_h,
+            self.frame_w,
+            self.frame_h
+        ))
+
+    def update(self, collisions=[]):
+        if self.invulnerability_timer > 0:
+            self.invulnerability_timer -= 1
+        if self.attack_cooldown > 0:
+            self.attack_cooldown -= 1
+
+        keys = pygame.key.get_pressed()
+        old_x, old_y = self.x, self.y
+        moved = False
+
+        if keys[self.controls["left"]]:
+            self.x -= self.speed
+            self.direction = 1
+            self.flip = True
+            moved = True
+        if keys[self.controls["right"]]:
+            self.x += self.speed
+            self.direction = 1
+            self.flip = False
+            moved = True
+        if keys[self.controls["up"]]:
+            self.y -= self.speed
+            moved = True
+        if keys[self.controls["down"]]:
+            self.y += self.speed
+            moved = True
+
+        rect = pygame.Rect(self.x, self.y, SPRITE_SIZE[0], SPRITE_SIZE[1])
+        for wall in collisions:
+            if rect.colliderect(wall):
+                self.x, self.y = old_x, old_y
                 break
-            pygame.time.wait(10)
-        local_player_id = network_client.player_id
-        if local_player_id:
-            players[local_player_id].controls = controls2
-            print(f"Connecte au serveur comme {local_player_id}")
-        else:
-            print("Connexion impossible: aucun joueur attribue par le serveur")
-            network_client.close()
-            network_client = None
-            args.network = "local"
-    except OSError as error:
-        print(f"Connexion impossible au serveur {args.host}:{args.port}: {error}")
-        network_client = None
-        args.network = "local"
 
-font = pygame.font.SysFont(None, 36)
-notification = None
-notification_timer = 0
-salle4_enemies = []
-salle4_boss_spawned = False
-salle5_enemies = []
-salle5_wave1_spawned = False
-salle5_wave2_spawned = False
-salle5_wave3_spawned = False
-salle5_wave4_spawned = False
-salle5_bosses_spawned = False
-controls_timer = 10000
-remote_enemies = []        # données brutes reçues du réseau
-client_enemy_objects = []  # vrais objets ennemis côté client, mis à jour depuis le réseau
-both_door_frames = 0       # compteur de frames où les deux joueurs sont à la porte
-
-def _make_enemy_from_data(e_data):
-    """Crée un objet ennemi du bon type depuis un dict réseau."""
-    x, y = e_data["x"], e_data["y"]
-    etype = e_data["type"]
-    if etype == "BossEnemy":
-        obj = BossEnemy(x, y)
-    elif etype == "ScorpioBoss":
-        obj = ScorpioBoss(x, y)
-    elif etype == "ScorpioEnemy":
-        obj = ScorpioEnemy(x, y, hp=e_data["max_hp"], speed=1.3)
-    else:
-        obj = RoomEnemy(x, y, hp=e_data["max_hp"], speed=1.3, color=(210, 65, 55))
-    return obj
-
-def _apply_enemy_data(obj, e_data):
-    """Met à jour un objet ennemi existant depuis les données réseau."""
-    obj.rect.x = e_data["x"]
-    obj.rect.y = e_data["y"]
-    obj.hp = e_data["hp"]
-    obj.alive = e_data["alive"]
-    obj.flip = e_data["flip"]
-    new_state = e_data["state"]
-    if obj.state != new_state:
-        obj._set_anim(new_state)
-    obj.anim_frame = e_data["anim_frame"]
-    # Projectiles : on positionne uniquement, sans simuler
-    proj_data = e_data.get("projectiles", [])
-    if hasattr(obj, "projectiles"):
-        while len(obj.projectiles) > len(proj_data):
-            obj.projectiles.pop()
-        while len(obj.projectiles) < len(proj_data):
-            from enemy import Projectile
-            obj.projectiles.append(Projectile(0, 0, 1, 0))
-        for proj_obj, pd in zip(obj.projectiles, proj_data):
-            proj_obj.rect.x = pd["x"]
-            proj_obj.rect.y = pd["y"]
-
-def _sync_client_enemies(enemies_data):
-    """Synchronise client_enemy_objects avec les données réseau reçues."""
-    global client_enemy_objects
-    if len(client_enemy_objects) != len(enemies_data) or any(
-        type(obj).__name__ != ed["type"]
-        for obj, ed in zip(client_enemy_objects, enemies_data)
-    ):
-        client_enemy_objects = [_make_enemy_from_data(ed) for ed in enemies_data]
-    for obj, ed in zip(client_enemy_objects, enemies_data):
-        _apply_enemy_data(obj, ed)
-
-def _serialize_enemies():
-    """Sérialise tous les ennemis actifs en liste de dicts pour le réseau."""
-    result = []
-    enemy_list = salle4_enemies if current_room_key == "salle4" else salle5_enemies if current_room_key == "salle5" else []
-    for e in enemy_list:
-        result.append({
-            "type": type(e).__name__,
-            "x": e.rect.x,
-            "y": e.rect.y,
-            "hp": e.hp,
-            "max_hp": e.max_hp,
-            "alive": e.alive,
-            "state": e.state,
-            "anim_frame": e.anim_frame,
-            "flip": e.flip,
-            "projectiles": [
-                {"x": p.rect.x, "y": p.rect.y}
-                for p in getattr(e, "projectiles", [])
-            ],
-        })
-    return result
-
-def player_rect(player):
-    return pygame.Rect(player.x, player.y, 48, 64)
-
-def activate_local_leviers(player):
-    rect = player_rect(player)
-    room.activate_levier(rect, "levier 1")
-    room.activate_levier(rect, "levier 2")
-    room.activate_levier(rect, "levier 3")
-
-def reset_room_state(room_key):
-    global salle4_enemies, salle4_boss_spawned
-    global salle5_enemies, salle5_wave1_spawned, salle5_wave2_spawned
-    global salle5_wave3_spawned, salle5_wave4_spawned, salle5_bosses_spawned
-    rooms[room_key].reset_state()
-    if room_key == "salle4":
-        salle4_enemies = [
-            RoomEnemy(90, 230, target_player=0, hp=45, speed=1.3, color=(210, 65, 55)),
-            RoomEnemy(520, 165, target_player=1, hp=45, speed=1.3, color=(210, 65, 55)),
-        ]
-        salle4_boss_spawned = False
-    if room_key == "salle5":
-        salle5_enemies = []
-        salle5_wave1_spawned = False
-        salle5_wave2_spawned = False
-        salle5_wave3_spawned = False
-        salle5_wave4_spawned = False
-        salle5_bosses_spawned = False
-
-def spawn_enemy_at(spawn_name, target_room, scorpio=False):
-    sp = target_room.spawn_points.get(spawn_name)
-    if sp:
-        if scorpio:
-            return ScorpioEnemy(sp[0], sp[1], hp=45, speed=1.3)
-        return RoomEnemy(sp[0], sp[1], hp=45, speed=1.3, color=(210, 65, 55))
-    return None
-
-def spawn_boss_at(spawn_name, target_room):
-    sp = target_room.spawn_points.get(spawn_name)
-    if sp:
-        return BossEnemy(sp[0], sp[1])
-    return None
-
-def set_players_on_room_spawn(room_key):
-    target_room = rooms[room_key]
-    if room_key == "salle5":
-        spawn = target_room.spawn_points.get("spawn 2 joueur", target_room.spawn)
-        if spawn:
-            player1.x, player1.y = spawn
-            player2.x, player2.y = spawn[0] + 50, spawn[1]
-        else:
-            player1.x, player1.y = 300, 300
-            player2.x, player2.y = 350, 300
-    else:
-        p1_spawn = target_room.spawn_points.get("spawn J1 salle 4", target_room.spawn)
-        p2_spawn = target_room.spawn_points.get("spawn J2 salle 4", target_room.spawn)
-        if p1_spawn:
-            player1.x, player1.y = p1_spawn
-        else:
-            player1.x, player1.y = 300, 300
-        if p2_spawn:
-            player2.x, player2.y = p2_spawn
-        elif p1_spawn:
-            player2.x, player2.y = p1_spawn[0] + 50, p1_spawn[1]
-        else:
-            player2.x, player2.y = 200, 300
-    player1.hp = 100
-    player2.hp = 100
-    player1.invulnerability_timer = 0
-    player2.invulnerability_timer = 0
-
-def damage_enemies(attacking_players):
-    global notification, notification_timer
-    enemy_list = salle4_enemies if current_room_key == "salle4" else salle5_enemies if current_room_key == "salle5" else []
-    if not enemy_list:
-        return
-    for player in attacking_players:
-        attack_rect = player.rect.inflate(34, 34)
-        for enemy in enemy_list:
-            if enemy.alive and attack_rect.colliderect(enemy.rect):
-                enemy.take_damage(20)
-                notification = "Ennemi touche !"
-                notification_timer = 900
-                return
-
-def update_salle4_enemies():
-    global salle4_boss_spawned, salle4_enemies
-    if current_room_key != "salle4":
-        return
-
-    opened = room.levier1_activated and room.levier2_activated
-    if opened and not salle4_boss_spawned:
-        salle4_enemies = []
-        salle4_enemies.append(BossEnemy(305, 90))
-        salle4_boss_spawned = True
-
-    active_players = [player1, player2]
-    room_bounds = pygame.Rect(0, 0, SCREEN_W, SCREEN_H)
-    for enemy in salle4_enemies:
-        enemy.update(room.collisions, active_players, room_bounds)
-    salle4_enemies = [e for e in salle4_enemies if not e.death_anim_done]
-
-def update_salle5_enemies():
-    global salle5_enemies, salle5_wave1_spawned, salle5_wave2_spawned
-    global salle5_wave3_spawned, salle5_wave4_spawned, salle5_bosses_spawned
-    if current_room_key != "salle5":
-        return
-
-    r5 = rooms["salle5"]
-
-    if not salle5_wave1_spawned:
-        e1 = spawn_enemy_at("spawn ennemie 1", r5)
-        e2 = spawn_enemy_at("spawn ennemie 2", r5)
-        for e in [e1, e2]:
-            if e:
-                salle5_enemies.append(e)
-        salle5_wave1_spawned = True
-
-    if not salle5_wave2_spawned and not r5.wall_replace_active:
-        e3 = spawn_enemy_at("spawn ennemie 3", r5)
-        if e3:
-            salle5_enemies.append(e3)
-        salle5_wave2_spawned = True
-
-    if not salle5_wave3_spawned and not r5.wall_replace3_active:
-        for name in ("spawn ennemie 4", "spawn ennemie 5", "spawn ennemie 6", "spawn ennemie 7"):
-            e = spawn_enemy_at(name, r5, scorpio=True)
-            if e:
-                salle5_enemies.append(e)
-        salle5_wave3_spawned = True
-
-    if not salle5_wave4_spawned and not r5.wall_replace4_active:
-        e8 = spawn_enemy_at("spawn ennemie 8", r5, scorpio=True)
-        if e8:
-            salle5_enemies.append(e8)
-        salle5_wave4_spawned = True
-
-    if not salle5_bosses_spawned and not r5.wall_replace5_active:
-        b1 = spawn_boss_at("spawn boss 1", r5)
-        if b1:
-            salle5_enemies.append(b1)
-        sp2 = r5.spawn_points.get("spawn boss 2")
-        if sp2:
-            salle5_enemies.append(ScorpioBoss(sp2[0], sp2[1]))
-        salle5_bosses_spawned = True
-
-    active_players = [player1, player2]
-    room_bounds = pygame.Rect(0, 0, SALLE5_W, SALLE5_H)
-    for enemy in salle5_enemies:
-        enemy.update(r5.collisions, active_players, room_bounds)
-    salle5_enemies = [e for e in salle5_enemies if not e.death_anim_done]
-
-def draw_enemies(surface, dt):
-    # En mode client réseau (player2), on dessine les vrais objets synchronisés
-    if args.network == "client" and local_player_id == "player2":
-        for obj in client_enemy_objects:
-            obj.draw(surface, dt)
-        return
-
-    # Mode local / hôte : on dessine les vrais objets ennemis
-    if current_room_key == "salle4":
-        for e in salle4_enemies:
-            e.draw(surface, dt)
-    elif current_room_key == "salle5":
-        for e in salle5_enemies:
-            e.draw(surface, dt)
-
-def teleport_via_portail(door_info, trigger):
-    target = next((d for d in room.doors if d["name"] == door_info), None)
-    if target:
-        if trigger == "p1":
-            player1.x, player1.y = target["rect"].x + 32, target["rect"].y
-        else:
-            player2.x, player2.y = target["rect"].x + 32, target["rect"].y
-
-def restart_current_room():
-    global notification, notification_timer, client_enemy_objects
-    reset_room_state(current_room_key)
-    set_players_on_room_spawn(current_room_key)
-    client_enemy_objects = []
-    notification = "Un joueur est tombe ! Salle recommencee."
-    notification_timer = 3000
-
-def show_credits():
-    credits_font = pygame.font.SysFont(None, 46)
-    title_font = pygame.font.SysFont(None, 64)
-    names = ["Nael", "Melissa", "Julia", "Hadrien", "Ghali"]
-    lines = ["Merci d'avoir joue", "", "Equipe"] + names + ["", "Fin"]
-    scroll_y = SCREEN_H
-    running_credits = True
-    while running_credits:
-        dt = clock.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                return
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
-                return
-        screen.fill((0, 0, 0))
-        y = scroll_y
-        for index, line in enumerate(lines):
-            font_to_use = title_font if index == 0 else credits_font
-            text = font_to_use.render(line, True, (230, 240, 230))
-            screen.blit(text, text.get_rect(center=(SCREEN_W // 2, int(y))))
-            y += 62
-        scroll_y -= dt * 0.04
-        if y < 0:
-            running_credits = False
-        pygame.display.flip()
-
-salle5_surface = pygame.Surface((SALLE5_W, SALLE5_H))
-
-running = True
-while running:
-    dt = clock.tick(FPS)
-    network_event = None
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_F11:
-                toggle_fullscreen()
-            if event.key == pygame.K_ESCAPE:
-                running = False
-            if event.key == pygame.K_F1:
-                current_room_key = "salle4"
-                room = rooms[current_room_key]
-                set_players_on_room_spawn(current_room_key)
-                reset_room_state(current_room_key)
-            if event.key == pygame.K_F2:
-                current_room_key = "salle5"
-                room = rooms[current_room_key]
-                set_players_on_room_spawn(current_room_key)
-                reset_room_state(current_room_key)
-            if args.network == "client" and event.key in NETWORK_ATTACK_KEYS:
-                if local_player_id:
-                    p = players[local_player_id]
-                    if p.can_attack():
-                        p.start_attack()
-                        network_event = "attack"  # l'hôte appliquera les dégâts
-            elif args.network != "client":
-                if event.key in PLAYER1_ATTACK_KEYS:
-                    if player1.can_attack():
-                        damage_enemies([player1])
-                        player1.start_attack()
-                if event.key in PLAYER2_ATTACK_KEYS:
-                    if player2.can_attack():
-                        damage_enemies([player2])
-                        player2.start_attack()
-            if args.network == "client":
-                if event.key in (pygame.K_e, pygame.K_m) and local_player_id:
-                    activate_local_leviers(players[local_player_id])
-                    network_event = "interact"
+        if self.animations:
+            if self.is_attacking:
+                attack_key = "attaque_gauche" if self.flip else "attaque_droite"
+                done = self._advance_anim(attack_key, loop=False)
+                if done:
+                    self.is_attacking = False
             else:
-                if event.key == pygame.K_m:
-                    activate_local_leviers(player1)
-                if event.key == pygame.K_e:
-                    activate_local_leviers(player2)
+                move_key = self._get_move_key(keys)
+                if move_key:
+                    self._advance_anim(move_key, loop=True)
+                else:
+                    # Immobile : fige sur la frame 0 de la dernière direction
+                    self.anim_frame = 0
+                    self.anim_tick = 0
+        else:
+            if moved:
+                self.frame = (self.frame + 1) % 4
 
-    if args.network == "client" and local_player_id:
-        players[local_player_id].update(room.collisions)
+    def start_attack(self):
+        self.attack_cooldown = 35
+        if self.animations:
+            attack_key = "attaque_gauche" if self.flip else "attaque_droite"
+            if attack_key in self.animations:
+                self.is_attacking = True
+                self.anim_key = attack_key
+                self.anim_frame = 0
+                self.anim_tick = 0
 
-        state = network_client.get_state()
-        for player_id, player_state in state["players"].items():
-            if player_id != local_player_id and player_id in players:
-                players[player_id].apply_network_state(player_state)
-            # Le client applique ses propres HP depuis le serveur (calculés par l'hôte)
-            elif player_id == local_player_id and player_id in players:
-                players[player_id].hp = int(player_state.get("hp", players[player_id].hp))
-                players[player_id].invulnerability_timer = int(player_state.get("invulnerability_timer", players[player_id].invulnerability_timer))
+    def can_attack(self):
+        return self.attack_cooldown <= 0
 
-        # Synchronisation de la salle : le client suit la salle de l'hôte
-        net_room = state.get("room")
-        if net_room and net_room != current_room_key and local_player_id == "player2":
-            current_room_key = net_room
-            room = rooms[current_room_key]
-            set_players_on_room_spawn(current_room_key)
-            reset_room_state(current_room_key)
-            notification = None
+    def start_attack_cooldown(self):
+        self.attack_cooldown = 35
 
-        # Synchronisation des ennemis : le client reconstruit les vrais objets
-        if local_player_id == "player2":
-            enemies_data = state.get("enemies", [])
-            remote_enemies.clear()
-            remote_enemies.extend(enemies_data)
-            _sync_client_enemies(enemies_data)
-
-        for net_event in state["events"]:
-            if net_event.get("id", 0) <= last_network_event_id:
-                continue
-            last_network_event_id = net_event.get("id", last_network_event_id)
-            event_player_id = net_event.get("player_id")
-            etype = net_event.get("type")
-            if etype == "restart" and local_player_id == "player2":
-                restart_current_room()
-            elif etype == "attack" and local_player_id == "player1" and event_player_id in players:
-                # L'hôte applique les dégâts de l'attaque du client sur les vrais ennemis
-                damage_enemies([players[event_player_id]])
-            elif etype == "interact" and event_player_id != local_player_id and event_player_id in players:
-                activate_local_leviers(players[event_player_id])
-
-        # L'hôte envoie aussi l'état des ennemis à chaque frame
-        enemies_data = _serialize_enemies() if local_player_id == "player1" else None
-        network_client.send_player_state(
-            players[local_player_id].to_network_state(),
-            event_type=network_event,
-            enemies=enemies_data,
-        )
-    else:
-        player1.update(room.collisions)
-        player2.update(room.collisions)
-
-    p1_rect = player_rect(player1)
-    p2_rect = player_rect(player2)
-
-    for rect in [p1_rect, p2_rect]:
-        collected = room.check_items(rect)
-        for item in collected:
-            notification = f"Ramassé : {item}"
-            notification_timer = 3000
-
-    door_status, door_info, door_trigger = room.check_doors(p1_rect, p2_rect)
-    room.check_plaques(p1_rect, p2_rect)
-
-    # Seul l'hôte (ou le mode local) simule les ennemis
-    if args.network != "client" or local_player_id == "player1":
-        update_salle4_enemies()
-        update_salle5_enemies()
-
-    if (args.network != "client" or local_player_id == "player1") and (
-        current_room_key == "salle5"
-        and salle5_bosses_spawned
-        and len(salle5_enemies) == 0
-    ):
-        show_credits()
-        running = False
-
-    # Seul l'hôte (ou le mode local) décide du restart et du changement de salle
-    is_host_or_local = args.network != "client" or local_player_id == "player1"
-
-    room_restarted = player1.hp <= 0 or player2.hp <= 0
-    if is_host_or_local and room_restarted:
-        restart_current_room()
-        p1_rect = player_rect(player1)
-        p2_rect = player_rect(player2)
-        # L'hôte notifie le client via un event réseau
-        if args.network == "client" and local_player_id and network_client:
-            network_client.send_player_state(
-                players[local_player_id].to_network_state(),
-                event_type="restart",
+    def take_hit(self, from_x=None, from_y=None, damage=10, collisions=None, bounds=None):
+        if self.invulnerability_timer > 0:
+            return False
+        self.hp = max(0, self.hp - damage)
+        self.invulnerability_timer = 45
+        if from_x is not None and from_y is not None:
+            dx = self.x + 24 - from_x
+            dy = self.y + 32 - from_y
+            dist = max(1, (dx * dx + dy * dy) ** 0.5)
+            self._safe_knockback(
+                int(12 * dx / dist),
+                int(12 * dy / dist),
+                collisions or [],
+                bounds,
             )
-    elif not is_host_or_local:
-        room_restarted = False  # le client ne décide jamais de redémarrer seul
+        return True
 
-    if not room_restarted and door_status == "portail" and door_info:
-        teleport_via_portail(door_info, door_trigger)
-    elif is_host_or_local and not room_restarted and door_status == "both" and door_info:
-        both_door_frames += 1
-        # En réseau on attend 2 frames consécutives pour éviter les faux positifs dus au délai réseau
-        required_frames = 2 if args.network == "client" else 1
-        if both_door_frames >= required_frames:
-            both_door_frames = 0
-            current_room_key = door_info
-            room = rooms[current_room_key]
-            set_players_on_room_spawn(current_room_key)
-            reset_room_state(current_room_key)
-            notification = None
-            if args.network == "client" and local_player_id and network_client:
-                network_client.send_player_state(
-                    players[local_player_id].to_network_state(),
-                    room=current_room_key,
-                )
-    elif is_host_or_local and not room_restarted and door_status == "one":
-        both_door_frames = 0
-        notification = "Les deux joueurs doivent atteindre la porte de sortie !"
-        notification_timer = 3000
-    else:
-        both_door_frames = 0
+    def _safe_knockback(self, dx, dy, collisions, bounds):
+        old_x, old_y = self.x, self.y
+        self.x += dx
+        if self._blocked(collisions, bounds):
+            self.x = old_x
+        self.y += dy
+        if self._blocked(collisions, bounds):
+            self.y = old_y
 
-    screen.fill((0, 0, 0))
+    def _blocked(self, collisions, bounds):
+        rect = self.rect
+        if bounds and not bounds.contains(rect):
+            return True
+        return any(rect.colliderect(wall) for wall in collisions)
 
-    if current_room_key == "salle5":
-        salle5_surface.fill((0, 0, 0))
-        room.draw(salle5_surface, dt, p1_rect, p2_rect)
-        draw_enemies(salle5_surface, dt)
-        player1.draw(salle5_surface)
-        player2.draw(salle5_surface)
-        scaled = pygame.transform.scale(salle5_surface, (SCREEN_W, SCREEN_H))
-        screen.blit(scaled, (0, 0))
-    else:
-        room.draw(screen, dt, p1_rect, p2_rect)
-        draw_enemies(screen, dt)
-        player1.draw(screen)
-        player2.draw(screen)
+    def draw(self, surface):
+        frame = self.get_frame()
+        if frame is None:
+            return
+        frame = pygame.transform.scale(frame, SPRITE_SIZE)
+        if not self.animations:
+            frame = pygame.transform.flip(frame, self.flip, False)
+        if self.invulnerability_timer > 0 and (self.invulnerability_timer // 5) % 2 == 0:
+            frame = frame.copy()
+            frame.fill((120, 0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        surface.blit(frame, (self.x, self.y))
 
-    if notification and notification_timer > 0:
-        notification_timer -= dt * 4
-        small_font = pygame.font.SysFont(None, 24)
-        text = small_font.render(notification, True, (255, 255, 255))
-        pad = 10
-        rect_w = text.get_width() + pad * 2
-        rect_h = text.get_height() + pad * 2
-        rect_x = SCREEN_W // 2 - rect_w // 2
-        rect_y = SCREEN_H // 2 - rect_h // 2
-        notif_surf = pygame.Surface((rect_w, rect_h), pygame.SRCALPHA)
-        notif_surf.fill((30, 30, 30, 120))
-        screen.blit(notif_surf, (rect_x, rect_y))
-        pygame.draw.rect(screen, (255, 255, 255, 80), (rect_x, rect_y, rect_w, rect_h), 1, border_radius=6)
-        screen.blit(text, (rect_x + pad, rect_y + pad))
+        bar_w = SPRITE_SIZE[0]
+        hp_w = int(bar_w * (self.hp / 100))
+        pygame.draw.rect(surface, (60, 20, 20), (self.x, self.y - 8, bar_w, 5))
+        pygame.draw.rect(surface, (80, 220, 90), (self.x, self.y - 8, hp_w, 5))
 
-    if current_room_key == "salle1" and controls_timer > 0:
-        controls_timer -= dt
-        lines = ["ZQSD : Se deplacer", "E : Interagir", "F : Attaquer"]
-        tip_font = pygame.font.SysFont(None, 28)
-        pad = 10
-        line_h = tip_font.get_linesize()
-        box_w = 220
-        box_h = len(lines) * line_h + pad * 2
-        box_x = 10
-        box_y = SCREEN_H - box_h - 10
-        tip_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-        tip_surf.fill((20, 20, 20, 160))
-        screen.blit(tip_surf, (box_x, box_y))
-        for i, line in enumerate(lines):
-            txt = tip_font.render(line, True, (255, 255, 255))
-            screen.blit(txt, (box_x + pad, box_y + pad + i * line_h))
+    def to_network_state(self):
+        return {
+            "x": int(self.x),
+            "y": int(self.y),
+            "direction": int(self.direction),
+            "frame": int(self.frame),
+            "flip": bool(self.flip),
+            "anim_key": self.anim_key,
+            "anim_frame": int(self.anim_frame),
+            "hp": int(self.hp),
+            "invulnerability_timer": int(self.invulnerability_timer),
+        }
 
-    pygame.display.flip()
-
-if network_client:
-    network_client.close()
-if local_server:
-    local_server.stop()
-pygame.quit()
+    def apply_network_state(self, state):
+        self.x = int(state.get("x", self.x))
+        self.y = int(state.get("y", self.y))
+        self.direction = int(state.get("direction", self.direction))
+        self.frame = int(state.get("frame", self.frame))
+        self.flip = bool(state.get("flip", self.flip))
+        self.anim_key = state.get("anim_key", self.anim_key)
+        self.anim_frame = int(state.get("anim_frame", self.anim_frame))
+        self.hp = int(state.get("hp", self.hp))
+        self.invulnerability_timer = int(state.get("invulnerability_timer", self.invulnerability_timer))
