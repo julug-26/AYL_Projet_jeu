@@ -131,8 +131,57 @@ salle5_wave3_spawned = False
 salle5_wave4_spawned = False
 salle5_bosses_spawned = False
 controls_timer = 10000
-remote_enemies = []  # ennemis reçus du réseau (client seulement)
-both_door_frames = 0  # compteur de frames où les deux joueurs sont à la porte
+remote_enemies = []        # données brutes reçues du réseau
+client_enemy_objects = []  # vrais objets ennemis côté client, mis à jour depuis le réseau
+both_door_frames = 0       # compteur de frames où les deux joueurs sont à la porte
+
+def _make_enemy_from_data(e_data):
+    """Crée un objet ennemi du bon type depuis un dict réseau."""
+    x, y = e_data["x"], e_data["y"]
+    etype = e_data["type"]
+    if etype == "BossEnemy":
+        obj = BossEnemy(x, y)
+    elif etype == "ScorpioBoss":
+        obj = ScorpioBoss(x, y)
+    elif etype == "ScorpioEnemy":
+        obj = ScorpioEnemy(x, y, hp=e_data["max_hp"], speed=1.3)
+    else:
+        obj = RoomEnemy(x, y, hp=e_data["max_hp"], speed=1.3, color=(210, 65, 55))
+    return obj
+
+def _apply_enemy_data(obj, e_data):
+    """Met à jour un objet ennemi existant depuis les données réseau."""
+    obj.rect.x = e_data["x"]
+    obj.rect.y = e_data["y"]
+    obj.hp = e_data["hp"]
+    obj.alive = e_data["alive"]
+    obj.flip = e_data["flip"]
+    new_state = e_data["state"]
+    if obj.state != new_state:
+        obj._set_anim(new_state)
+    obj.anim_frame = e_data["anim_frame"]
+    # Projectiles : on positionne uniquement, sans simuler
+    proj_data = e_data.get("projectiles", [])
+    if hasattr(obj, "projectiles"):
+        while len(obj.projectiles) > len(proj_data):
+            obj.projectiles.pop()
+        while len(obj.projectiles) < len(proj_data):
+            from enemy import Projectile
+            obj.projectiles.append(Projectile(0, 0, 1, 0))
+        for proj_obj, pd in zip(obj.projectiles, proj_data):
+            proj_obj.rect.x = pd["x"]
+            proj_obj.rect.y = pd["y"]
+
+def _sync_client_enemies(enemies_data):
+    """Synchronise client_enemy_objects avec les données réseau reçues."""
+    global client_enemy_objects
+    if len(client_enemy_objects) != len(enemies_data) or any(
+        type(obj).__name__ != ed["type"]
+        for obj, ed in zip(client_enemy_objects, enemies_data)
+    ):
+        client_enemy_objects = [_make_enemy_from_data(ed) for ed in enemies_data]
+    for obj, ed in zip(client_enemy_objects, enemies_data):
+        _apply_enemy_data(obj, ed)
 
 def _serialize_enemies():
     """Sérialise tous les ennemis actifs en liste de dicts pour le réseau."""
@@ -308,35 +357,10 @@ def update_salle5_enemies():
     salle5_enemies = [e for e in salle5_enemies if not e.death_anim_done]
 
 def draw_enemies(surface, dt):
-    # En mode client réseau (player2), on dessine les ennemis reçus du serveur
+    # En mode client réseau (player2), on dessine les vrais objets synchronisés
     if args.network == "client" and local_player_id == "player2":
-        for e_data in remote_enemies:
-            x, y = e_data["x"], e_data["y"]
-            hp = e_data["hp"]
-            max_hp = e_data["max_hp"]
-            alive = e_data["alive"]
-            state = e_data["state"]
-            flip = e_data["flip"]
-
-            # Dessine un sprite simplifié basé sur les données réseau
-            color = (205, 55, 55) if "Scorpio" not in e_data["type"] else (180, 120, 30)
-            if "Boss" in e_data["type"]:
-                size = (96, 96)
-            else:
-                size = (64, 64)
-
-            if alive and state != "death":
-                rect = pygame.Rect(x, y, 30, 30)
-                cx, cy = rect.centerx, rect.centery
-                pygame.draw.rect(surface, color, (cx - size[0]//2, cy - size[1]//2, size[0], size[1]), border_radius=6)
-                # Barre de vie
-                bar_w = 30
-                hp_w = int(bar_w * max(0, hp) / max(1, max_hp))
-                pygame.draw.rect(surface, (70, 20, 20), (x, y - 7, bar_w, 4))
-                pygame.draw.rect(surface, (230, 70, 70), (x, y - 7, hp_w, 4))
-            # Projectiles
-            for p in e_data.get("projectiles", []):
-                pygame.draw.circle(surface, (255, 205, 70), (p["x"] + 5, p["y"] + 5), 5)
+        for obj in client_enemy_objects:
+            obj.draw(surface, dt)
         return
 
     # Mode local / hôte : on dessine les vrais objets ennemis
@@ -356,9 +380,10 @@ def teleport_via_portail(door_info, trigger):
             player2.x, player2.y = target["rect"].x + 32, target["rect"].y
 
 def restart_current_room():
-    global notification, notification_timer
+    global notification, notification_timer, client_enemy_objects
     reset_room_state(current_room_key)
     set_players_on_room_spawn(current_room_key)
+    client_enemy_objects = []
     notification = "Un joueur est tombe ! Salle recommencee."
     notification_timer = 3000
 
@@ -455,25 +480,29 @@ while running:
             reset_room_state(current_room_key)
             notification = None
 
-        # Synchronisation des ennemis : le client reçoit et stocke
+        # Synchronisation des ennemis : le client reconstruit les vrais objets
         if local_player_id == "player2":
+            enemies_data = state.get("enemies", [])
             remote_enemies.clear()
-            remote_enemies.extend(state.get("enemies", []))
+            remote_enemies.extend(enemies_data)
+            _sync_client_enemies(enemies_data)
 
         for net_event in state["events"]:
             if net_event.get("id", 0) <= last_network_event_id:
                 continue
             last_network_event_id = net_event.get("id", last_network_event_id)
             event_player_id = net_event.get("player_id")
-            if event_player_id != local_player_id and event_player_id in players:
-                if net_event.get("type") == "interact":
-                    activate_local_leviers(players[event_player_id])
+            etype = net_event.get("type")
+            if etype == "restart" and local_player_id == "player2":
+                restart_current_room()
+            elif etype == "interact" and event_player_id != local_player_id and event_player_id in players:
+                activate_local_leviers(players[event_player_id])
 
         # L'hôte envoie aussi l'état des ennemis à chaque frame
         enemies_data = _serialize_enemies() if local_player_id == "player1" else None
         network_client.send_player_state(
             players[local_player_id].to_network_state(),
-            network_event,
+            event_type=network_event,
             enemies=enemies_data,
         )
     else:
@@ -506,10 +535,18 @@ while running:
         running = False
 
     room_restarted = player1.hp <= 0 or player2.hp <= 0
-    if room_restarted:
+    if is_host_or_local and room_restarted:
         restart_current_room()
         p1_rect = player_rect(player1)
         p2_rect = player_rect(player2)
+        # L'hôte notifie le client via un event réseau
+        if args.network == "client" and local_player_id and network_client:
+            network_client.send_player_state(
+                players[local_player_id].to_network_state(),
+                event_type="restart",
+            )
+    elif not is_host_or_local:
+        room_restarted = False  # le client ne décide jamais de redémarrer seul
 
     # Seul l'hôte (ou le mode local) décide du changement de salle
     is_host_or_local = args.network != "client" or local_player_id == "player1"
