@@ -442,8 +442,8 @@ while running:
                 if local_player_id:
                     p = players[local_player_id]
                     if p.can_attack():
-                        damage_enemies([p])
                         p.start_attack()
+                        network_event = "attack"  # l'hôte appliquera les dégâts
             elif args.network != "client":
                 if event.key in PLAYER1_ATTACK_KEYS:
                     if player1.can_attack():
@@ -470,6 +470,10 @@ while running:
         for player_id, player_state in state["players"].items():
             if player_id != local_player_id and player_id in players:
                 players[player_id].apply_network_state(player_state)
+            # Le client applique ses propres HP depuis le serveur (calculés par l'hôte)
+            elif player_id == local_player_id and player_id in players:
+                players[player_id].hp = int(player_state.get("hp", players[player_id].hp))
+                players[player_id].invulnerability_timer = int(player_state.get("invulnerability_timer", players[player_id].invulnerability_timer))
 
         # Synchronisation de la salle : le client suit la salle de l'hôte
         net_room = state.get("room")
@@ -495,6 +499,9 @@ while running:
             etype = net_event.get("type")
             if etype == "restart" and local_player_id == "player2":
                 restart_current_room()
+            elif etype == "attack" and local_player_id == "player1" and event_player_id in players:
+                # L'hôte applique les dégâts de l'attaque du client sur les vrais ennemis
+                damage_enemies([players[event_player_id]])
             elif etype == "interact" and event_player_id != local_player_id and event_player_id in players:
                 activate_local_leviers(players[event_player_id])
 

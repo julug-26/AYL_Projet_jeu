@@ -111,6 +111,8 @@ class GameServer:
                 "direction": int(player.get("direction", 0)),
                 "frame": int(player.get("frame", 0)),
                 "flip": bool(player.get("flip", False)),
+                "hp": int(player.get("hp", self.players[player_id].get("hp", 100))),
+                "invulnerability_timer": int(player.get("invulnerability_timer", 0)),
             }
 
             new_room = message.get("room")
