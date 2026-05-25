@@ -534,6 +534,9 @@ while running:
         show_credits()
         running = False
 
+    # Seul l'hôte (ou le mode local) décide du restart et du changement de salle
+    is_host_or_local = args.network != "client" or local_player_id == "player1"
+
     room_restarted = player1.hp <= 0 or player2.hp <= 0
     if is_host_or_local and room_restarted:
         restart_current_room()
@@ -547,9 +550,6 @@ while running:
             )
     elif not is_host_or_local:
         room_restarted = False  # le client ne décide jamais de redémarrer seul
-
-    # Seul l'hôte (ou le mode local) décide du changement de salle
-    is_host_or_local = args.network != "client" or local_player_id == "player1"
 
     if not room_restarted and door_status == "portail" and door_info:
         teleport_via_portail(door_info, door_trigger)
