@@ -390,8 +390,8 @@ def restart_current_room():
 def show_credits():
     credits_font = pygame.font.SysFont(None, 46)
     title_font = pygame.font.SysFont(None, 64)
-    names = ["Nael", "Melissa", "Julia", "Hadrien", "Ghali"]
-    lines = ["Merci d'avoir joue", "", "Equipe"] + names + ["", "Fin"]
+    names = ["Naël Belhadj Amara", "Melissa Gay", "Julia Guimaraes", "Hadrien Beaurepaire", "Ghali Bennani"]
+    lines = ["Merci d'avoir joué", "", "Equipe"] + names + ["", "Fin"]
     scroll_y = SCREEN_H
     running_credits = True
     while running_credits:
