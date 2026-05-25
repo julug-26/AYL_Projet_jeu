@@ -22,7 +22,7 @@ mode = main_menu()
 if isinstance(mode, dict):
     if mode.get("mode") == "host":
         args.network = "client"
-        args.host = mode.get("host", "127.0.0.1")
+        args.host = "127.0.0.1"
     elif mode.get("mode") == "join":
         args.network = "client"
         args.host = mode.get("host", "127.0.0.1")
@@ -390,6 +390,15 @@ while running:
             if player_id != local_player_id and player_id in players:
                 players[player_id].apply_network_state(player_state)
 
+        # Synchronisation de la salle : le client suit la salle de l'hôte
+        net_room = state.get("room")
+        if net_room and net_room != current_room_key and local_player_id == "player2":
+            current_room_key = net_room
+            room = rooms[current_room_key]
+            set_players_on_room_spawn(current_room_key)
+            reset_room_state(current_room_key)
+            notification = None
+
         for net_event in state["events"]:
             if net_event.get("id", 0) <= last_network_event_id:
                 continue
@@ -441,6 +450,11 @@ while running:
         set_players_on_room_spawn(current_room_key)
         reset_room_state(current_room_key)
         notification = None
+        if args.network == "client" and local_player_id and network_client:
+            network_client.send_player_state(
+                players[local_player_id].to_network_state(),
+                room=current_room_key,
+            )
     elif not room_restarted and door_status == "one":
         notification = "Les deux joueurs doivent atteindre la porte de sortie !"
         notification_timer = 3000

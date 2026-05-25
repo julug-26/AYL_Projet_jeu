@@ -19,6 +19,7 @@ class GameServer:
         self.players = {key: value.copy() for key, value in DEFAULT_PLAYERS.items()}
         self.events = []
         self.next_event_id = 1
+        self.current_room = "salle1"
         self.lock = threading.Lock()
         self.running = True
 
@@ -111,6 +112,10 @@ class GameServer:
                 "flip": bool(player.get("flip", False)),
             }
 
+            new_room = message.get("room")
+            if new_room:
+                self.current_room = new_room
+
             event_type = message.get("event")
             if event_type:
                 self.events.append({
@@ -133,6 +138,7 @@ class GameServer:
                 "players": {key: value.copy() for key, value in self.players.items()},
                 "events": [event.copy() for event in self.events],
                 "connected": len(self.clients),
+                "room": self.current_room,
             }
             clients = list(self.clients.items())
 
