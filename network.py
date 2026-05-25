@@ -9,7 +9,7 @@ class NetworkClient:
         self.port = port
         self.sock = None
         self.player_id = None
-        self.state = {"players": {}, "events": [], "connected": 0, "room": None}
+        self.state = {"players": {}, "events": [], "connected": 0, "room": None, "enemies": []}
         self.connected = False
         self._lock = threading.Lock()
         self._buffer = ""
@@ -20,7 +20,7 @@ class NetworkClient:
         self.connected = True
         threading.Thread(target=self._receive_loop, daemon=True).start()
 
-    def send_player_state(self, player_state, event_type=None, room=None):
+    def send_player_state(self, player_state, event_type=None, room=None, enemies=None):
         if not self.connected or not self.sock:
             return
 
@@ -32,6 +32,8 @@ class NetworkClient:
             message["event"] = event_type
         if room:
             message["room"] = room
+        if enemies is not None:
+            message["enemies"] = enemies
 
         self._send(message)
 
@@ -45,6 +47,7 @@ class NetworkClient:
                 "events": [event.copy() for event in self.state.get("events", [])],
                 "connected": self.state.get("connected", 0),
                 "room": self.state.get("room"),
+                "enemies": list(self.state.get("enemies", [])),
             }
 
     def close(self):
@@ -91,4 +94,5 @@ class NetworkClient:
                 "events": message.get("events", []),
                 "connected": message.get("connected", 0),
                 "room": message.get("room"),
+                "enemies": message.get("enemies", []),
             }

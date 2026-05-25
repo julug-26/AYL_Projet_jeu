@@ -20,6 +20,7 @@ class GameServer:
         self.events = []
         self.next_event_id = 1
         self.current_room = "salle1"
+        self.enemies = []
         self.lock = threading.Lock()
         self.running = True
 
@@ -116,6 +117,10 @@ class GameServer:
             if new_room:
                 self.current_room = new_room
 
+            enemies = message.get("enemies")
+            if enemies is not None:
+                self.enemies = enemies
+
             event_type = message.get("event")
             if event_type:
                 self.events.append({
@@ -139,6 +144,7 @@ class GameServer:
                 "events": [event.copy() for event in self.events],
                 "connected": len(self.clients),
                 "room": self.current_room,
+                "enemies": list(self.enemies),
             }
             clients = list(self.clients.items())
 

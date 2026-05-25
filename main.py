@@ -131,6 +131,29 @@ salle5_wave3_spawned = False
 salle5_wave4_spawned = False
 salle5_bosses_spawned = False
 controls_timer = 10000
+remote_enemies = []  # ennemis reçus du réseau (client seulement)
+
+def _serialize_enemies():
+    """Sérialise tous les ennemis actifs en liste de dicts pour le réseau."""
+    result = []
+    enemy_list = salle4_enemies if current_room_key == "salle4" else salle5_enemies if current_room_key == "salle5" else []
+    for e in enemy_list:
+        result.append({
+            "type": type(e).__name__,
+            "x": e.rect.x,
+            "y": e.rect.y,
+            "hp": e.hp,
+            "max_hp": e.max_hp,
+            "alive": e.alive,
+            "state": e.state,
+            "anim_frame": e.anim_frame,
+            "flip": e.flip,
+            "projectiles": [
+                {"x": p.rect.x, "y": p.rect.y}
+                for p in getattr(e, "projectiles", [])
+            ],
+        })
+    return result
 
 def player_rect(player):
     return pygame.Rect(player.x, player.y, 48, 64)
@@ -284,6 +307,38 @@ def update_salle5_enemies():
     salle5_enemies = [e for e in salle5_enemies if not e.death_anim_done]
 
 def draw_enemies(surface, dt):
+    # En mode client réseau (player2), on dessine les ennemis reçus du serveur
+    if args.network == "client" and local_player_id == "player2":
+        for e_data in remote_enemies:
+            x, y = e_data["x"], e_data["y"]
+            hp = e_data["hp"]
+            max_hp = e_data["max_hp"]
+            alive = e_data["alive"]
+            state = e_data["state"]
+            flip = e_data["flip"]
+
+            # Dessine un sprite simplifié basé sur les données réseau
+            color = (205, 55, 55) if "Scorpio" not in e_data["type"] else (180, 120, 30)
+            if "Boss" in e_data["type"]:
+                size = (96, 96)
+            else:
+                size = (64, 64)
+
+            if alive and state != "death":
+                rect = pygame.Rect(x, y, 30, 30)
+                cx, cy = rect.centerx, rect.centery
+                pygame.draw.rect(surface, color, (cx - size[0]//2, cy - size[1]//2, size[0], size[1]), border_radius=6)
+                # Barre de vie
+                bar_w = 30
+                hp_w = int(bar_w * max(0, hp) / max(1, max_hp))
+                pygame.draw.rect(surface, (70, 20, 20), (x, y - 7, bar_w, 4))
+                pygame.draw.rect(surface, (230, 70, 70), (x, y - 7, hp_w, 4))
+            # Projectiles
+            for p in e_data.get("projectiles", []):
+                pygame.draw.circle(surface, (255, 205, 70), (p["x"] + 5, p["y"] + 5), 5)
+        return
+
+    # Mode local / hôte : on dessine les vrais objets ennemis
     if current_room_key == "salle4":
         for e in salle4_enemies:
             e.draw(surface, dt)
@@ -399,6 +454,11 @@ while running:
             reset_room_state(current_room_key)
             notification = None
 
+        # Synchronisation des ennemis : le client reçoit et stocke
+        if local_player_id == "player2":
+            remote_enemies.clear()
+            remote_enemies.extend(state.get("enemies", []))
+
         for net_event in state["events"]:
             if net_event.get("id", 0) <= last_network_event_id:
                 continue
@@ -408,9 +468,12 @@ while running:
                 if net_event.get("type") == "interact":
                     activate_local_leviers(players[event_player_id])
 
+        # L'hôte envoie aussi l'état des ennemis à chaque frame
+        enemies_data = _serialize_enemies() if local_player_id == "player1" else None
         network_client.send_player_state(
             players[local_player_id].to_network_state(),
             network_event,
+            enemies=enemies_data,
         )
     else:
         player1.update(room.collisions)
@@ -427,12 +490,17 @@ while running:
 
     door_status, door_info, door_trigger = room.check_doors(p1_rect, p2_rect)
     room.check_plaques(p1_rect, p2_rect)
-    update_salle4_enemies()
-    update_salle5_enemies()
 
-    if (current_room_key == "salle5"
-            and salle5_bosses_spawned
-            and len(salle5_enemies) == 0):
+    # Seul l'hôte (ou le mode local) simule les ennemis
+    if args.network != "client" or local_player_id == "player1":
+        update_salle4_enemies()
+        update_salle5_enemies()
+
+    if (args.network != "client" or local_player_id == "player1") and (
+        current_room_key == "salle5"
+        and salle5_bosses_spawned
+        and len(salle5_enemies) == 0
+    ):
         show_credits()
         running = False
 
